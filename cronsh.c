@@ -283,28 +283,27 @@ int main(int argc, char **argv) {
 	bufferAppendYAML(&outbuffer, 0, "type", "cron");
 	bufferAppendYAML(&outbuffer, 0, "hostname", "%s", config.thishostname);
 	bufferAppendYAML(&outbuffer, 0, "user", "%s", config.thisuser);
-	bufferAppendYAML(&outbuffer, 0, "data", "");
-	bufferAppendYAML(&outbuffer, 1, "rawcommand", "%s", rawcommand);
+	bufferAppendYAML(&outbuffer, 0, "rawcommand", "%s", rawcommand);
 
-	bufferAppendYAMLList(&outbuffer, 1, "command", command->argv);
+	bufferAppendYAMLList(&outbuffer, 0, "command", command->argv);
 
-	bufferAppendYAML(&outbuffer, 1, "tag", "%s", (command->tag != NULL) ? command->tag : "");
-	bufferAppendYAML(&outbuffer, 1, "starttime", "%ld", utcstarttime);
-	bufferAppendYAML(&outbuffer, 1, "runtime", "%ld", (int)(difftimespec(&starttime, &stoptime) * 1000));
-	bufferAppendYAML(&outbuffer, 1, "pid", "%u", command->pid);
-	bufferAppendYAML(&outbuffer, 1, "ppid", "%u", command->ppid);
-	bufferAppendYAML(&outbuffer, 1, "status", "%d", command->status);
-	bufferAppendYAML(&outbuffer, 1, "signal", "%d", command->signal);
+	bufferAppendYAML(&outbuffer, 0, "tag", "%s", (command->tag != NULL) ? command->tag : "");
+	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", utcstarttime);
+	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", (int)(difftimespec(&starttime, &stoptime) * 1000));
+	bufferAppendYAML(&outbuffer, 0, "pid", "%u", command->pid);
+	bufferAppendYAML(&outbuffer, 0, "ppid", "%u", command->ppid);
+	bufferAppendYAML(&outbuffer, 0, "status", "%d", command->status);
+	bufferAppendYAML(&outbuffer, 0, "signal", "%d", command->signal);
 
 	if(!(command->options & CRONSH_OPTION_CAPTURESTDOUT))
 		bufferReset(&command->stdoutbuffer);
 	
-	bufferAppendYAML(&outbuffer, 1, "stdout", "%s", command->stdoutbuffer.data);
+	bufferAppendYAML(&outbuffer, 0, "stdout", "%s", command->stdoutbuffer.data);
 
 	if(!(command->options & CRONSH_OPTION_CAPTURESTDERR))
 		bufferReset(&command->stderrbuffer);
 	
-	bufferAppendYAML(&outbuffer, 1, "stderr", "%s", command->stderrbuffer.data);
+	bufferAppendYAML(&outbuffer, 0, "stderr", "%s", command->stderrbuffer.data);
 
 	bufferAppendString(&outbuffer, "...\n");
 
