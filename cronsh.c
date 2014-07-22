@@ -17,10 +17,10 @@
 // gcc cronsh.c -o cronsh -O2 -Wall
 // __linux__: add -lrt for clock_gettime()
 
-#define CRONSH_LOGLEVEL_NOTICE		1
-#define CRONSH_LOGLEVEL_WARN		2
+#define CRONSH_LOGLEVEL_DEBUG		1
+#define CRONSH_LOGLEVEL_NOTICE		2
 #define CRONSH_LOGLEVEL_CRITICAL	3
-#define CRONSH_LOGLEVEL_DEFAULT		CRONSH_LOGLEVEL_NOTICE
+#define CRONSH_LOGLEVEL_DEFAULT		CRONSH_LOGLEVEL_DEBUG
 
 #define CRONSH_PARSE_OK			0
 #define CRONSH_PARSE_MEMORY		1
@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
 
 	utcstarttime = time(NULL);
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "rawcommand: %s", rawcommand);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "rawcommand: %s", rawcommand);
 
 	// parse command
 	command = cronsh_command_init(rawcommand, NULL);
@@ -250,17 +250,17 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 	
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "tag: %s", (command->tag != NULL) ? command->tag : "[none]");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "tag: %s", (command->tag != NULL) ? command->tag : "[none]");
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "options: %d", command->options);
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   silent   = %s", (command->options & CRONSH_OPTION_SILENT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   crondef  = %s", (command->options & CRONSH_OPTION_CRONDEFAULT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   stdout   = %s", (command->options & CRONSH_OPTION_CAPTURESTDOUT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   stderr   = %s", (command->options & CRONSH_OPTION_CAPTURESTDERR) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   cron     = %s", (command->options & CRONSH_OPTION_SENDTOCRON) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOLOG) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   remote   = %s", (command->options & CRONSH_OPTION_SENDTOREMOTE) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "   fallback = %s", (command->options & CRONSH_OPTION_SENDFALLBACK) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %d", command->options);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   silent   = %s", (command->options & CRONSH_OPTION_SILENT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   crondef  = %s", (command->options & CRONSH_OPTION_CRONDEFAULT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stdout   = %s", (command->options & CRONSH_OPTION_CAPTURESTDOUT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stderr   = %s", (command->options & CRONSH_OPTION_CAPTURESTDERR) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   cron     = %s", (command->options & CRONSH_OPTION_SENDTOCRON) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOLOG) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   remote   = %s", (command->options & CRONSH_OPTION_SENDTOREMOTE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   fallback = %s", (command->options & CRONSH_OPTION_SENDFALLBACK) ? "yes" : "no");
 
 
 	// execute the actual command
@@ -271,11 +271,11 @@ int main(int argc, char **argv) {
 	
 	clock_gettime(CLOCK_MONOTONIC, &stoptime);
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "status: %d, signal: %d", command->status, command->signal);
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d, signal: %d", command->status, command->signal);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "runtime: %dms", (int)(difftimespec(&starttime, &stoptime) * 1000));
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "runtime: %dms", (int)(difftimespec(&starttime, &stoptime) * 1000));
 
 	bufferInit(&outbuffer, CRONSH_BUFFER_STEPSIZE);
 	
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
 		// write to remote
 		if(command->options & CRONSH_OPTION_SENDTOREMOTE) {
 			int rv = cronsh_remote(config.remote, &outbuffer);
-			cronsh_log(CRONSH_LOGLEVEL_NOTICE, "sending to remote (%d)", rv);
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to remote (%d)", rv);
 
 			if(rv == 0) {
 				// if the fallback option was set, don't send it any further
@@ -323,7 +323,7 @@ int main(int argc, char **argv) {
 
 		// write to log
 		if(command->options & CRONSH_OPTION_SENDTOLOG) {
-			cronsh_log(CRONSH_LOGLEVEL_NOTICE, "sending to logfile");
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to logfile");
 			FILE *fp = fopen(config.messagelog, "a");
 			if(fp != NULL) {
 				fprintf(fp, "%s", outbuffer.data);
@@ -342,7 +342,7 @@ int main(int argc, char **argv) {
 		}
 		
 		if(command->options & CRONSH_OPTION_SENDTOCRON) {
-			cronsh_log(CRONSH_LOGLEVEL_NOTICE, "sending to cron");
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to cron");
 			fprintf(stdout, "%s", outbuffer.data);
 		}
 	}
@@ -351,14 +351,14 @@ int main(int argc, char **argv) {
 
 	bufferFree(&outbuffer);
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "done\n");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "done\n");
 
 	return 0;
 }
 
 void cronsh_help(void) {
 	fprintf(stderr, "NAME\n");
-	fprintf(stderr, "\tcronsh - a shell for executing cronjobs\n");
+	fprintf(stderr, "\tcronsh - a shell for executing cron jobs\n");
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "SYNOPSIS\n");
@@ -419,9 +419,9 @@ void cronsh_help(void) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_LOGLEVEL\n");
 	fprintf(stderr, "\t    Set the logging verbosity for messages written to CRONSH_ERRORLOG. Valid verbosity levels are:\n");
-	fprintf(stderr, "\t         notice    very verbose logging, includes warn and critical.\n");
-	fprintf(stderr, "\t         warn      less verbose logging, includes critical.\n");
-	fprintf(stderr, "\t         critical  logs every that prevents the proper execution of cronsh.\n");
+	fprintf(stderr, "\t         debug     very verbose logging, includes warn and critical.\n");
+	fprintf(stderr, "\t         notice    less verbose logging, includes critical.\n");
+	fprintf(stderr, "\t         critical  only logs events that prevent the proper execution of cronsh.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_ERRORLOG\n");
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
@@ -458,7 +458,7 @@ int cronsh_remote(const char *rawremotecommand, buffer_t *buffer) {
 	if(rawremotecommand == NULL)
 		return -1;
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "sending to: %s", rawremotecommand);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to: %s", rawremotecommand);
 
 	command = cronsh_command_init(rawremotecommand, buffer);
 	if(command == NULL)
@@ -524,7 +524,7 @@ void cronsh_command_spawn(command_t *command) {
 	
 	command->pid = pid;
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "spawned child (%d)", pid);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "spawned child (%d)", pid);
 
 	close(childstdinfd[0]);
 	close(childstdoutfd[1]);
@@ -609,7 +609,7 @@ void cronsh_command_spawn(command_t *command) {
 	close(childstdoutfd[0]);
 	close(childstderrfd[0]);
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "waitpid(%d)", pid);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "waitpid(%d)", pid);
 
 	int status;
 
@@ -638,10 +638,10 @@ void cronsh_init(void) {
 
 	env = getenv("CRONSH_LOGLEVEL");
 	if(env != NULL) {
-		if(!strcmp("notice", env))
+		if(!strcmp("debug", env))
+			config.loglevel = CRONSH_LOGLEVEL_DEBUG;
+		else if(!strcmp("notice", env))
 			config.loglevel = CRONSH_LOGLEVEL_NOTICE;
-		else if(!strcmp("warn", env))
-			config.loglevel = CRONSH_LOGLEVEL_WARN;
 		else if(!strcmp("critical", env))
 			config.loglevel = CRONSH_LOGLEVEL_CRITICAL;
 		else
@@ -656,7 +656,7 @@ void cronsh_init(void) {
 		config.errorfp = fopen(config.errorlog, "a");
 	}
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "init start");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "init start");
 
 
 	/* MESSAGELOG */
@@ -664,7 +664,7 @@ void cronsh_init(void) {
 	env = getenv("CRONSH_MESSAGELOG");
 	if(env != NULL) {
 		config.messagelog = strdup(env);
-		cronsh_log(CRONSH_LOGLEVEL_NOTICE, "LOG: %s", config.messagelog);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "LOG: %s", config.messagelog);
 	}
 	
 	
@@ -677,7 +677,7 @@ void cronsh_init(void) {
 	else
 		config.options = CRONSH_OPTION_NONE;
 	
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "OPTIONS: %d", config.options);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "OPTIONS: %d", config.options);
 
 
 	/* REMOTE */
@@ -685,7 +685,7 @@ void cronsh_init(void) {
 	env = getenv("CRONSH_REMOTE");
 	if(env != NULL) {
 		config.remote = strdup(env);
-		cronsh_log(CRONSH_LOGLEVEL_NOTICE, "REMOTE: %s", config.remote);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "REMOTE: %s", config.remote);
 	}
 
 
@@ -699,7 +699,7 @@ void cronsh_init(void) {
 		strlcpy(config.thishostname, "[unknown]", sizeof(config.thishostname));
 	}
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "HOSTNAME: %s", config.thishostname);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "HOSTNAME: %s", config.thishostname);
 	
 
 	/* USER */
@@ -718,10 +718,10 @@ void cronsh_init(void) {
 		}
 	}
 	
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "USER: %s", config.thisuser);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "USER: %s", config.thisuser);
 
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "init done");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "init done");
 
 	return;
 }
@@ -830,7 +830,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 				}
 
 				if(current == '"') {
-					cronsh_log(CRONSH_LOGLEVEL_NOTICE, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
+					cronsh_log(CRONSH_LOGLEVEL_DEBUG, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
 					inquotes = 1;
 					continue;
 				}
@@ -863,7 +863,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 				}
 
 				if(current == '"') {
-					cronsh_log(CRONSH_LOGLEVEL_NOTICE, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
+					cronsh_log(CRONSH_LOGLEVEL_DEBUG, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
 					inquotes = 0;
 					continue;
 				}
@@ -888,7 +888,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 		return NULL;
 	}
 
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "nargs: %d", nargs);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "nargs: %d", nargs);
 
 	// trimming & split to args
 
@@ -915,7 +915,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	command->argv[nargs] = NULL;
 
 	for(i = 0; command->argv[i] != NULL; i++) {
-		cronsh_log(CRONSH_LOGLEVEL_NOTICE, "argv[%d]: %s", i, command->argv[i]);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "argv[%d]: %s", i, command->argv[i]);
 	}
 	
 	
@@ -942,7 +942,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 		strlcat(tcommand, " ", len);
 	}
 	
-	cronsh_log(CRONSH_LOGLEVEL_NOTICE, "options: %s", tcommand);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", tcommand);
 	
 	// set the individual options
 	command->options = cronsh_options(config.options, tcommand);
@@ -1021,7 +1021,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		else if(!strcmp(token, "sendfallback")) toption = CRONSH_OPTION_SENDFALLBACK;
 		else {
 			toption = CRONSH_OPTION_NONE;
-			cronsh_log(CRONSH_LOGLEVEL_WARN, "unknown option: %s", token);
+			cronsh_log(CRONSH_LOGLEVEL_NOTICE, "unknown option: %s", token);
 		}
 		
 		if(negate == 1)
@@ -1058,8 +1058,8 @@ void cronsh_log(int loglevel, const char *format, ...) {
 	va_end(ap);
 
 	switch(loglevel) {
+		case CRONSH_LOGLEVEL_DEBUG: l = "DEBG"; break;
 		case CRONSH_LOGLEVEL_NOTICE: l = "NOTE"; break;
-		case CRONSH_LOGLEVEL_WARN: l = "WARN"; break;
 		case CRONSH_LOGLEVEL_CRITICAL: l = "CRIT"; break;
 		default: l = "UNKN"; break;
 	}
