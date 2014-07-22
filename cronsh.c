@@ -34,8 +34,8 @@
 #define CRONSH_OPTION_CAPTUREALL	(CRONSH_OPTION_CAPTURESTDOUT | CRONSH_OPTION_CAPTURESTDERR)
 #define CRONSH_OPTION_SENDTOCRON	(1 << 4)
 #define CRONSH_OPTION_SENDTOLOG		(1 << 5)
-#define CRONSH_OPTION_SENDTOREMOTE	(1 << 6)
-#define CRONSH_OPTION_SENDTOALL		(CRONSH_OPTION_SENDTOCRON | CRONSH_OPTION_SENDTOLOG | CRONSH_OPTION_SENDTOREMOTE)
+#define CRONSH_OPTION_SENDTOPIPE	(1 << 6)
+#define CRONSH_OPTION_SENDTOALL		(CRONSH_OPTION_SENDTOCRON | CRONSH_OPTION_SENDTOLOG | CRONSH_OPTION_SENDTOPIPE)
 #define CRONSH_OPTION_SENDFALLBACK	(1 << 7)
 
 #define CRONSH_BUFFER_STEPSIZE		(64 * 1024)
@@ -73,7 +73,7 @@ typedef struct {
 	
 	unsigned int options;
 
-	char *remote;
+	char *pipe;
 
 	char thisuser[256];
 	char thishostname[256];
@@ -85,7 +85,7 @@ config_t config;
 
 void cronsh_init(void);
 void cronsh_help(void);
-int cronsh_remote(const char *rawremotecommand, buffer_t *buffer);
+int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer);
 void cronsh_log(int loglevel, const char *format, ...);
 
 unsigned int cronsh_options(unsigned int prevoptions, const char *options);
@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stderr   = %s", (command->options & CRONSH_OPTION_CAPTURESTDERR) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   cron     = %s", (command->options & CRONSH_OPTION_SENDTOCRON) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOLOG) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   remote   = %s", (command->options & CRONSH_OPTION_SENDTOREMOTE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   pipe     = %s", (command->options & CRONSH_OPTION_SENDTOPIPE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   fallback = %s", (command->options & CRONSH_OPTION_SENDFALLBACK) ? "yes" : "no");
 
 
@@ -309,10 +309,10 @@ int main(int argc, char **argv) {
 	bufferAppendString(&outbuffer, "...\n");
 
 	if(!(command->options & CRONSH_OPTION_SILENT)) {
-		// write to remote
-		if(command->options & CRONSH_OPTION_SENDTOREMOTE) {
-			int rv = cronsh_remote(config.remote, &outbuffer);
-			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to remote (%d)", rv);
+		// write to pipe
+		if(command->options & CRONSH_OPTION_SENDTOPIPE) {
+			int rv = cronsh_pipe(config.pipe, &outbuffer);
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to pipe (%d)", rv);
 
 			if(rv == 0) {
 				// if the fallback option was set, don't send it any further
@@ -369,7 +369,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
 	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command all captured data is arranged in a YAML document.\n");
 	fprintf(stderr, "\tThis document will be sent to cron, written to a log file (see CRONSH_MESSAGELOG), or piped to an other command (see\n");
-	fprintf(stderr, "\tCRONSH_REMOTE). See CRONSH_OPTIONS for specifying the different behaviours. Every command can be annotated with\n");
+	fprintf(stderr, "\tCRONSH_PIPE). See CRONSH_OPTIONS for specifying the different behaviours. Every command can be annotated with\n");
 	fprintf(stderr, "\ta tag and with additional options to modifiy its behaviour.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
@@ -429,9 +429,9 @@ void cronsh_help(void) {
 	fprintf(stderr, "\tCRONSH_MESSAGELOG\n");
 	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtolog' is given.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_OPTIONS silent, crondefault, capturestdin, capturestdout, captureall, sendtocron, sendtolog, sendtoremote, sendfallback\n");
+	fprintf(stderr, "\tCRONSH_OPTIONS silent, crondefault, capturestdin, capturestdout, captureall, sendtocron, sendtolog, sendtopipe, sendfallback\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_REMOTE\n");
+	fprintf(stderr, "\tCRONSH_PIPE\n");
 	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
@@ -451,16 +451,16 @@ void cronsh_help(void) {
 	return;
 }
 
-int cronsh_remote(const char *rawremotecommand, buffer_t *buffer) {
+int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 	int rv;
 	command_t *command;
 	
-	if(rawremotecommand == NULL)
+	if(rawpipecommand == NULL)
 		return -1;
 
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to: %s", rawremotecommand);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to: %s", rawpipecommand);
 
-	command = cronsh_command_init(rawremotecommand, buffer);
+	command = cronsh_command_init(rawpipecommand, buffer);
 	if(command == NULL)
 		return -1;
 
@@ -680,12 +680,12 @@ void cronsh_init(void) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "OPTIONS: %d", config.options);
 
 
-	/* REMOTE */
+	/* PIPE */
 
-	env = getenv("CRONSH_REMOTE");
+	env = getenv("CRONSH_PIPE");
 	if(env != NULL) {
-		config.remote = strdup(env);
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "REMOTE: %s", config.remote);
+		config.pipe = strdup(env);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "PIPE: %s", config.pipe);
 	}
 
 
@@ -994,7 +994,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		// where to send to
 		sendtocron, !sendtocron
 		sendtolog, !sendtolog
-		sendtoremote, !sendtoremote
+		sendtopipe, !sendtopipe
 		sendtoall, !sendtoall
 		sendfallback, !sendfallback
 	*/
@@ -1016,7 +1016,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		else if(!strcmp(token, "captureall")) toption = CRONSH_OPTION_CAPTUREALL;
 		else if(!strcmp(token, "sendtocron")) toption = CRONSH_OPTION_SENDTOCRON;
 		else if(!strcmp(token, "sendtolog")) toption = CRONSH_OPTION_SENDTOLOG;
-		else if(!strcmp(token, "sendtoremote")) toption = CRONSH_OPTION_SENDTOREMOTE;
+		else if(!strcmp(token, "sendtopipe")) toption = CRONSH_OPTION_SENDTOPIPE;
 		else if(!strcmp(token, "sendtoall")) toption = CRONSH_OPTION_SENDTOALL;
 		else if(!strcmp(token, "sendfallback")) toption = CRONSH_OPTION_SENDFALLBACK;
 		else {
