@@ -33,9 +33,9 @@
 #define CRONSH_OPTION_CAPTURESTDERR	(1 << 3)
 #define CRONSH_OPTION_CAPTUREALL	(CRONSH_OPTION_CAPTURESTDOUT | CRONSH_OPTION_CAPTURESTDERR)
 #define CRONSH_OPTION_SENDTOCRON	(1 << 4)
-#define CRONSH_OPTION_SENDTOLOG		(1 << 5)
+#define CRONSH_OPTION_SENDTOFILE	(1 << 5)
 #define CRONSH_OPTION_SENDTOPIPE	(1 << 6)
-#define CRONSH_OPTION_SENDTOALL		(CRONSH_OPTION_SENDTOCRON | CRONSH_OPTION_SENDTOLOG | CRONSH_OPTION_SENDTOPIPE)
+#define CRONSH_OPTION_SENDTOALL		(CRONSH_OPTION_SENDTOCRON | CRONSH_OPTION_SENDTOFILE | CRONSH_OPTION_SENDTOPIPE)
 #define CRONSH_OPTION_SENDFALLBACK	(1 << 7)
 
 #define CRONSH_BUFFER_STEPSIZE		(64 * 1024)
@@ -69,11 +69,10 @@ typedef struct {
 	char *errorlog;
 	FILE *errorfp;
 
-	char *messagelog;
-	
-	unsigned int options;
-
+	char *file;
 	char *pipe;
+
+	unsigned int options;
 
 	char thisuser[256];
 	char thishostname[256];
@@ -258,7 +257,7 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stdout   = %s", (command->options & CRONSH_OPTION_CAPTURESTDOUT) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stderr   = %s", (command->options & CRONSH_OPTION_CAPTURESTDERR) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   cron     = %s", (command->options & CRONSH_OPTION_SENDTOCRON) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOLOG) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOFILE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   pipe     = %s", (command->options & CRONSH_OPTION_SENDTOPIPE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   fallback = %s", (command->options & CRONSH_OPTION_SENDFALLBACK) ? "yes" : "no");
 
@@ -321,9 +320,9 @@ int main(int argc, char **argv) {
 		}
 
 		// write to log
-		if(command->options & CRONSH_OPTION_SENDTOLOG) {
+		if(command->options & CRONSH_OPTION_SENDTOFILE) {
 			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to logfile");
-			FILE *fp = fopen(config.messagelog, "a");
+			FILE *fp = fopen(config.file, "a");
 			if(fp != NULL) {
 				fprintf(fp, "%s", outbuffer.data);
 				fclose(fp);
@@ -423,8 +422,11 @@ void cronsh_help(void) {
 	fprintf(stderr, "\tCRONSH_ERRORLOG\n");
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_MESSAGELOG\n");
+	fprintf(stderr, "\tCRONSH_FILE\n");
 	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtolog' is given.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_PIPE\n");
+	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
 	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
@@ -437,9 +439,6 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         sendtolog       - send the YAML to a log file (see CRON_MESSAGELOG).\n");
 	fprintf(stderr, "\t         sendtopipe      - send the YAML to the pipe (see CRONSH_PIPE).\n");
 	fprintf(stderr, "\t         sendfallback    - send the YAML first to pipe, then to log, and then cron if the previous didn't work.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_PIPE\n");
-	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
 	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
@@ -666,12 +665,21 @@ void cronsh_init(void) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "init start");
 
 
-	/* MESSAGELOG */
+	/* FILE */
 
-	env = getenv("CRONSH_MESSAGELOG");
+	env = getenv("CRONSH_FILE");
 	if(env != NULL) {
-		config.messagelog = strdup(env);
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "LOG: %s", config.messagelog);
+		config.file = strdup(env);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "FILE: %s", config.file);
+	}
+
+
+	/* PIPE */
+
+	env = getenv("CRONSH_PIPE");
+	if(env != NULL) {
+		config.pipe = strdup(env);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "PIPE: %s", config.pipe);
 	}
 	
 	
@@ -687,15 +695,6 @@ void cronsh_init(void) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "OPTIONS: %d", config.options);
 
 
-	/* PIPE */
-
-	env = getenv("CRONSH_PIPE");
-	if(env != NULL) {
-		config.pipe = strdup(env);
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "PIPE: %s", config.pipe);
-	}
-
-
 	/* HOSTNAME */
 
 	env = getenv("CRONSH_HOSTNAME");
@@ -705,6 +704,8 @@ void cronsh_init(void) {
 	else if(gethostname(config.thishostname, sizeof(config.thishostname)) != 0) {
 		strlcpy(config.thishostname, "[unknown]", sizeof(config.thishostname));
 	}
+
+	config.thishostname[sizeof(config.thishostname) - 1] = '\0';
 
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "HOSTNAME: %s", config.thishostname);
 	
@@ -724,6 +725,8 @@ void cronsh_init(void) {
 			strlcpy(config.thisuser, "[unknown]", sizeof(config.thisuser));
 		}
 	}
+
+	config.thisuser[sizeof(config.thisuser) - 1] = '\0';
 	
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "USER: %s", config.thisuser);
 
@@ -1000,7 +1003,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		captureall, !captureall
 		// where to send to
 		sendtocron, !sendtocron
-		sendtolog, !sendtolog
+		sendtofile, !sendtofile
 		sendtopipe, !sendtopipe
 		sendtoall, !sendtoall
 		sendfallback, !sendfallback
@@ -1022,7 +1025,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		else if(!strcmp(token, "capturestderr")) toption = CRONSH_OPTION_CAPTURESTDERR;
 		else if(!strcmp(token, "captureall")) toption = CRONSH_OPTION_CAPTUREALL;
 		else if(!strcmp(token, "sendtocron")) toption = CRONSH_OPTION_SENDTOCRON;
-		else if(!strcmp(token, "sendtolog")) toption = CRONSH_OPTION_SENDTOLOG;
+		else if(!strcmp(token, "sendtofile")) toption = CRONSH_OPTION_SENDTOFILE;
 		else if(!strcmp(token, "sendtopipe")) toption = CRONSH_OPTION_SENDTOPIPE;
 		else if(!strcmp(token, "sendtoall")) toption = CRONSH_OPTION_SENDTOALL;
 		else if(!strcmp(token, "sendfallback")) toption = CRONSH_OPTION_SENDFALLBACK;
@@ -1166,8 +1169,8 @@ int bufferAppendString(buffer_t *dst, const char *format, ...) {
 		return 0;
 
 	va_start(ap, format);
-        vasprintf(&string, format, ap);
-        va_end(ap);
+	vasprintf(&string, format, ap);
+	va_end(ap);
 
 	if(string == NULL)
 		return 0;
