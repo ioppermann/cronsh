@@ -118,43 +118,6 @@ int clock_gettime(int clk_id, struct timespec* t) {
 }
 #endif
 
-#ifdef __linux__
-/*
- * Appends src to string dst of size siz (unlike strncat, siz is the
- * full size of dst, not space left).  At most siz-1 characters
- * will be copied.  Always NUL terminates (unless siz <= strlen(dst)).
- * Returns strlen(src) + MIN(siz, strlen(initial dst)).
- * If retval >= siz, truncation occurred.
- */
-size_t
-strlcat(char *dst, const char *src, size_t siz)
-{
-	char *d = dst;
-	const char *s = src;
-	size_t n = siz;
-	size_t dlen;
-
-	/* Find the end of dst and adjust bytes left but don't go past end */
-	while (n-- != 0 && *d != '\0')
-		d++;
-	dlen = d - dst;
-	n = siz - dlen;
-
-	if (n == 0)
-		return(dlen + strlen(s));
-	while (*s != '\0') {
-		if (n != 1) {
-			*d++ = *s;
-			n--;
-		}
-		s++;
-	}
-	*d = '\0';
-
-	return(dlen + (s - src));	/* count does not include NUL */
-}
-#endif
-
 float difftimespec(struct timespec *start, struct timespec *stop) {
 	struct timespec t;
 
@@ -900,7 +863,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	
 	// concat the options
 
-	tcommand[0] = '\0';
+	memset(tcommand, 0, len);
 	
 	inoptions = 0;
 	for(i = 0; command->argv[i] != NULL; i++) {
@@ -917,8 +880,8 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 			continue;
 		}
 		
-		strlcat(tcommand, command->argv[i], len);
-		strlcat(tcommand, " ", len);
+		strncat(tcommand, command->argv[i], strlen(command->argv[i]));
+		strncat(tcommand, " ", 1);
 	}
 	
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", tcommand);
