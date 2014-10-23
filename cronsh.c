@@ -355,7 +355,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_FILE\n");
-	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtolog' is given.\n");
+	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtofile' is given.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_PIPE\n");
 	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
@@ -368,7 +368,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         capturestderr   - capture stderr.\n");
 	fprintf(stderr, "\t         captureall      - capture stdout and stderr.\n");
 	fprintf(stderr, "\t         sendtocron      - send the YAML to cron.\n");
-	fprintf(stderr, "\t         sendtolog       - send the YAML to a log file (see CRON_MESSAGELOG).\n");
+	fprintf(stderr, "\t         sendtofile      - send the YAML to a file (see CRONSH_FILE).\n");
 	fprintf(stderr, "\t         sendtopipe      - send the YAML to the pipe (see CRONSH_PIPE).\n");
 	fprintf(stderr, "\t         sendfallback    - send the YAML first to pipe, then to log, and then cron if the previous didn't work.\n");
 	fprintf(stderr, "\n");
