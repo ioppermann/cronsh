@@ -5,6 +5,8 @@
 #include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -550,8 +552,9 @@ void cronsh_command_spawn(command_t *command) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "waitpid(%d)", pid);
 
 	int status;
+	struct rusage rusage;
 
-	waitpid(pid, &status, 0);
+	wait4(pid, &status, 0, &rusage);
 
 	if(WIFEXITED(status))
 		command->status = WEXITSTATUS(status);
