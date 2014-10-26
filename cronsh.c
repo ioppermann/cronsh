@@ -300,7 +300,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "DESCRIPTION\n");
 	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
 	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command, all captured data is arranged in a YAML document.\n");
-	fprintf(stderr, "\tThis document will be sent to cron, written to a log file (see CRONSH_MESSAGELOG), or piped to an other command (see\n");
+	fprintf(stderr, "\tThis document will be sent to cron, written to a log file (see CRONSH_FILE), or piped to an other command (see\n");
 	fprintf(stderr, "\tCRONSH_PIPE). Set CRONSH_OPTIONS for specifying the default behaviour.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
@@ -320,7 +320,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\ttype: cron\n");
 	fprintf(stderr, "\thostname: Ingos-MacBook-Air.local                                   - CRONSH_HOSTNAME or gethostname().\n");
 	fprintf(stderr, "\tuser: ioppermann                                                    - USER or LOGNAME.\n");
-	fprintf(stderr, "\trawcommand: /usr/bin/printf \"hello world\" #tag sendtolog          - crontab command line.\n");
+	fprintf(stderr, "\trawcommand: /usr/bin/printf 'hello world' #tag sendtolog            - crontab command line.\n");
 	fprintf(stderr, "\tcommand:                                                            - executed command.\n");
 	fprintf(stderr, "\t  - /usr/bin/printf\n");
 	fprintf(stderr, "\t  - hello world\n");
