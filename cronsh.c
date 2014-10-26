@@ -70,8 +70,8 @@ typedef struct {
 
 typedef struct {
 	int loglevel;
-	char *errorlog;
-	FILE *errorfp;
+	char *log;
+	FILE *logfp;
 
 	char *file;
 	char *pipe;
@@ -302,7 +302,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "DESCRIPTION\n");
 	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
 	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command, all captured data is arranged in a YAML document.\n");
-	fprintf(stderr, "\tThis document will be sent to cron, written to a log file (see CRONSH_FILE), or piped to an other command (see\n");
+	fprintf(stderr, "\tThis document will be sent to cron, written to a file (see CRONSH_FILE), or piped to an other command (see\n");
 	fprintf(stderr, "\tCRONSH_PIPE). Set CRONSH_OPTIONS for specifying the default behaviour.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
@@ -350,12 +350,12 @@ void cronsh_help(void) {
 	fprintf(stderr, "\tThese environment variables are recognized by cronsh and can be set in the crontab.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_LOGLEVEL\n");
-	fprintf(stderr, "\t    Set the logging verbosity for messages written to CRONSH_ERRORLOG. Valid verbosity levels are:\n");
+	fprintf(stderr, "\t    Set the logging verbosity for messages written to CRONSH_LOG. Valid verbosity levels are:\n");
 	fprintf(stderr, "\t         debug     - very verbose logging, includes warn and critical.\n");
 	fprintf(stderr, "\t         notice    - less verbose logging, includes critical.\n");
 	fprintf(stderr, "\t         critical  - only logs events that prevent the proper execution of cronsh.\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_ERRORLOG\n");
+	fprintf(stderr, "\tCRONSH_LOG\n");
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_FILE\n");
@@ -366,7 +366,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
 	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
-	fprintf(stderr, "\t         silent          - nothing will be send to cron, log, or pipe.\n");
+	fprintf(stderr, "\t         silent          - nothing will be send to cron, file, or pipe.\n");
 	fprintf(stderr, "\t         crondefault     - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
 	fprintf(stderr, "\t         capturestdout   - capture stdout.\n");
 	fprintf(stderr, "\t         capturestderr   - capture stderr.\n");
@@ -374,13 +374,13 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         sendtocron      - send the YAML to cron.\n");
 	fprintf(stderr, "\t         sendtofile      - send the YAML to a file (see CRONSH_FILE).\n");
 	fprintf(stderr, "\t         sendtopipe      - send the YAML to the pipe (see CRONSH_PIPE).\n");
-	fprintf(stderr, "\t         sendfallback    - send the YAML first to pipe, then to log, and then cron if the previous didn't work.\n");
+	fprintf(stderr, "\t         sendfallback    - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
 	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tUSER / LOGNAME\n");
-	fprintf(stderr, "\n    The user who owns this crontab and this command will be run as. See the man page for crontab.\n");
+	fprintf(stderr, "\t    The user who owns this crontab and this command will be run as. See the man page for crontab.\n");
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "BUGS\n");
@@ -592,10 +592,10 @@ void cronsh_init(void) {
 	else
 		config.loglevel = CRONSH_LOGLEVEL_DEFAULT;
 
-	env = getenv("CRONSH_ERRORLOG");
+	env = getenv("CRONSH_LOG");
 	if(env != NULL) {
-		config.errorlog = strdup(env);
-		config.errorfp = fopen(config.errorlog, "a");
+		config.log = strdup(env);
+		config.logfp = fopen(config.log, "a");
 	}
 
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "init start");
@@ -988,8 +988,8 @@ void cronsh_log(int loglevel, const char *format, ...) {
 	if(loglevel < config.loglevel)
 		return;
 
-	if(config.errorfp == NULL) {
-		config.errorfp = stderr;
+	if(config.logfp == NULL) {
+		config.logfp = stderr;
 	}
 	
 	time_t clock = time(NULL);
@@ -1010,9 +1010,9 @@ void cronsh_log(int loglevel, const char *format, ...) {
 		default: l = "UNKN"; break;
 	}
 
-	fprintf(config.errorfp, "[%s] %s %u: %s\n", datetime, l, config.pid, message);
+	fprintf(config.logfp, "[%s] %s %u: %s\n", datetime, l, config.pid, message);
 	
-	fflush(config.errorfp);
+	fflush(config.logfp);
 
 	return;
 }
