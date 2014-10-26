@@ -61,6 +61,8 @@ typedef struct {
 	int status;
 	int signal;
 
+	struct rusage rusage;
+
 	buffer_t *stdinbuffer;
 	buffer_t stdoutbuffer;
 	buffer_t stderrbuffer;
@@ -552,9 +554,8 @@ void cronsh_command_spawn(command_t *command) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "waitpid(%d)", pid);
 
 	int status;
-	struct rusage rusage;
 
-	wait4(pid, &status, 0, &rusage);
+	wait4(pid, &status, 0, &command->rusage);
 
 	if(WIFEXITED(status))
 		command->status = WEXITSTATUS(status);
