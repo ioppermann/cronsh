@@ -28,17 +28,35 @@
 #define CRONSH_PARSE_MEMORY		1
 #define CRONSH_PARSE_QUOTES		2
 
-#define CRONSH_OPTION_NONE		0
-#define CRONSH_OPTION_SILENT		(1 << 0)
-#define CRONSH_OPTION_CRONDEFAULT	(1 << 1)
-#define CRONSH_OPTION_CAPTURESTDOUT	(1 << 2)
-#define CRONSH_OPTION_CAPTURESTDERR	(1 << 3)
-#define CRONSH_OPTION_CAPTUREALL	(CRONSH_OPTION_CAPTURESTDOUT | CRONSH_OPTION_CAPTURESTDERR)
-#define CRONSH_OPTION_SENDTOCRON	(1 << 4)
-#define CRONSH_OPTION_SENDTOFILE	(1 << 5)
-#define CRONSH_OPTION_SENDTOPIPE	(1 << 6)
-#define CRONSH_OPTION_SENDTOALL		(CRONSH_OPTION_SENDTOCRON | CRONSH_OPTION_SENDTOFILE | CRONSH_OPTION_SENDTOPIPE)
-#define CRONSH_OPTION_SENDFALLBACK	(1 << 7)
+#define CRONSH_OPTION_NONE			0
+#define CRONSH_OPTION_SILENT			(1 <<  0)
+// capture options
+#define CRONSH_OPTION_CAPTURE_STDOUT		(1 <<  1)
+#define CRONSH_OPTION_CAPTURE_STDERR		(1 <<  2)
+#define CRONSH_OPTION_CAPTURE_ALL		(CRONSH_OPTION_CAPTURE_STDOUT | CRONSH_OPTION_CAPTURE_STDERR)
+// sendto options
+#define CRONSH_OPTION_SENDTO_CRON		(1 <<  3)
+#define CRONSH_OPTION_SENDTO_FILE		(1 <<  4)
+#define CRONSH_OPTION_SENDTO_PIPE		(1 <<  5)
+#define CRONSH_OPTION_SENDTO_ALL		(CRONSH_OPTION_SENDTO_CRON | CRONSH_OPTION_SENDTO_FILE | CRONSH_OPTION_SENDTO_PIPE)
+#define CRONSH_OPTION_SENDTO_FALLBACK		(1 <<  6)
+// sendon options
+#define CRONSH_OPTION_SENDIF_STATUS		(1 <<  7)	// status != 0
+#define CRONSH_OPTION_SENDIF_STATUS_OK		(1 <<  8)	// status == 0
+#define CRONSH_OPTION_SENDIF_STATUS_ANY		(CRONSH_OPTION_SENDIF_STATUS_OK | CRONSH_OPTION_SENDIF_STATUS)
+#define CRONSH_OPTION_SENDIF_SIGNAL		(1 <<  9)	// signal != 0
+#define CRONSH_OPTION_SENDIF_SIGNAL_OK		(1 << 10)	// signal == 0
+#define CRONSH_OPTION_SENDIF_SIGNAL_ANY		(CRONSH_OPTION_SENDIF_SIGNAL_OK | CRONSH_OPTION_SENDIF_SIGNAL)
+#define CRONSH_OPTION_SENDIF_STDOUT 		(1 << 11)	// stdout != ''
+#define CRONSH_OPTION_SENDIF_STDOUT_NONE	(1 << 12)	// stdout == ''
+#define CRONSH_OPTION_SENDIF_STDOUT_ANY		(CRONSH_OPTION_SENDIF_STDOUT | CRONSH_OPTION_SENDIF_STDOUT_NONE)
+#define CRONSH_OPTION_SENDIF_STDERR		(1 << 13)	// stderr != ''
+#define CRONSH_OPTION_SENDIF_STDERR_NONE	(1 << 14)	// stderr == ''
+#define CRONSH_OPTION_SENDIF_STDERR_ANY		(CRONSH_OPTION_SENDIF_STDERR | CRONSH_OPTION_SENDIF_STDERR_NONE)
+// cron default options
+#define CRONSH_OPTION_CRONDEFAULT		(CRONSH_OPTION_SENDIF_STATUS_ANY | CRONSH_OPTION_SENDIF_SIGNAL_ANY | CRONSH_OPTION_SENDIF_STDOUT | CRONSH_OPTION_SENDIF_STDERR)
+
+#define CRONSH_OPTION(a, o) (((a) & CRONSH_OPTION_o == CRONSH_OPTION_o))
 
 #define CRONSH_BUFFER_STEPSIZE		(64 * 1024)
 
@@ -188,14 +206,26 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "tag: %s", (command->tag != NULL) ? command->tag : "[none]");
 
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %d", command->options);
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   silent   = %s", (command->options & CRONSH_OPTION_SILENT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   crondef  = %s", (command->options & CRONSH_OPTION_CRONDEFAULT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stdout   = %s", (command->options & CRONSH_OPTION_CAPTURESTDOUT) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   stderr   = %s", (command->options & CRONSH_OPTION_CAPTURESTDERR) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   cron     = %s", (command->options & CRONSH_OPTION_SENDTOCRON) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   log      = %s", (command->options & CRONSH_OPTION_SENDTOFILE) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   pipe     = %s", (command->options & CRONSH_OPTION_SENDTOPIPE) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   fallback = %s", (command->options & CRONSH_OPTION_SENDFALLBACK) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   silent                      = %s", (command->options & CRONSH_OPTION_SILENT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   crondefault                 = %s", (command->options & CRONSH_OPTION_CRONDEFAULT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   capture stdout              = %s", (command->options & CRONSH_OPTION_CAPTURE_STDOUT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   capture stderr              = %s", (command->options & CRONSH_OPTION_CAPTURE_STDERR) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to cron                = %s", (command->options & CRONSH_OPTION_SENDTO_CRON) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to log                 = %s", (command->options & CRONSH_OPTION_SENDTO_FILE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to pipe                = %s", (command->options & CRONSH_OPTION_SENDTO_PIPE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to fallback            = %s", (command->options & CRONSH_OPTION_SENDTO_FALLBACK) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if status is not 0     = %s", (command->options & CRONSH_OPTION_SENDIF_STATUS) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if status is 0         = %s", (command->options & CRONSH_OPTION_SENDIF_STATUS_OK) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if status is anything  = %s", (command->options & CRONSH_OPTION_SENDIF_STATUS_ANY) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is not 0     = %s", (command->options & CRONSH_OPTION_SENDIF_SIGNAL) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is 0         = %s", (command->options & CRONSH_OPTION_SENDIF_SIGNAL_OK) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is anything  = %s", (command->options & CRONSH_OPTION_SENDIF_SIGNAL_ANY) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if there is stdout     = %s", (command->options & CRONSH_OPTION_SENDIF_STDOUT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stdout is empty     = %s", (command->options & CRONSH_OPTION_SENDIF_STDOUT_NONE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stdout is anything  = %s", (command->options & CRONSH_OPTION_SENDIF_STDOUT_ANY) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if there is stderr     = %s", (command->options & CRONSH_OPTION_SENDIF_STDERR) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is empty     = %s", (command->options & CRONSH_OPTION_SENDIF_STDERR_NONE) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is anything  = %s", (command->options & CRONSH_OPTION_SENDIF_STDERR_ANY) ? "yes" : "no");
 
 
 	// execute the actual command
@@ -230,12 +260,12 @@ int main(int argc, char **argv) {
 	bufferAppendYAML(&outbuffer, 0, "status", "%d", command->status);
 	bufferAppendYAML(&outbuffer, 0, "signal", "%d", command->signal);
 
-	if(!(command->options & CRONSH_OPTION_CAPTURESTDOUT))
+	if(!(command->options & CRONSH_OPTION_CAPTURE_STDOUT))
 		bufferReset(&command->stdoutbuffer);
 	
 	bufferAppendYAML(&outbuffer, 0, "stdout", "%s", command->stdoutbuffer.data);
 
-	if(!(command->options & CRONSH_OPTION_CAPTURESTDERR))
+	if(!(command->options & CRONSH_OPTION_CAPTURE_STDERR))
 		bufferReset(&command->stderrbuffer);
 	
 	bufferAppendYAML(&outbuffer, 0, "stderr", "%s", command->stderrbuffer.data);
@@ -244,19 +274,19 @@ int main(int argc, char **argv) {
 
 	if(!(command->options & CRONSH_OPTION_SILENT)) {
 		// write to pipe
-		if(command->options & CRONSH_OPTION_SENDTOPIPE) {
+		if(command->options & CRONSH_OPTION_SENDTO_PIPE) {
 			int rv = cronsh_pipe(config.pipe, &outbuffer);
 			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to pipe (%d)", rv);
 
 			if(rv == 0) {
 				// if the fallback option was set, don't send it any further
-				if(command->options & CRONSH_OPTION_SENDFALLBACK)
-					command->options &= ~CRONSH_OPTION_SENDTOALL;
+				if(command->options & CRONSH_OPTION_SENDTO_FALLBACK)
+					command->options &= ~CRONSH_OPTION_SENDTO_ALL;
 			}
 		}
 
 		// write to log
-		if(command->options & CRONSH_OPTION_SENDTOFILE) {
+		if(command->options & CRONSH_OPTION_SENDTO_FILE) {
 			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to logfile");
 			FILE *fp = fopen(config.file, "a");
 			if(fp != NULL) {
@@ -264,18 +294,18 @@ int main(int argc, char **argv) {
 				fclose(fp);
 
 				// if the fallback option was set, don't send it any further
-				if(command->options & CRONSH_OPTION_SENDFALLBACK)
-					command->options &= ~CRONSH_OPTION_SENDTOALL;
+				if(command->options & CRONSH_OPTION_SENDTO_FALLBACK)
+					command->options &= ~CRONSH_OPTION_SENDTO_ALL;
 			}
 		}
 
 		// write to cron
 		if(command->options & CRONSH_OPTION_CRONDEFAULT) {
 			if(command->stdoutbuffer.used == 0 && command->stderrbuffer.used == 0 && command->status == 0)
-				command->options &= ~CRONSH_OPTION_SENDTOCRON;
+				command->options &= ~CRONSH_OPTION_SENDTO_CRON;
 		}
 		
-		if(command->options & CRONSH_OPTION_SENDTOCRON) {
+		if(command->options & CRONSH_OPTION_SENDTO_CRON) {
 			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to cron");
 			fprintf(stdout, "%s", outbuffer.data);
 		}
@@ -366,15 +396,28 @@ void cronsh_help(void) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
 	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
-	fprintf(stderr, "\t         silent          - nothing will be send to cron, file, or pipe.\n");
-	fprintf(stderr, "\t         crondefault     - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
-	fprintf(stderr, "\t         capturestdout   - capture stdout.\n");
-	fprintf(stderr, "\t         capturestderr   - capture stderr.\n");
-	fprintf(stderr, "\t         captureall      - capture stdout and stderr.\n");
-	fprintf(stderr, "\t         sendtocron      - send the YAML to cron.\n");
-	fprintf(stderr, "\t         sendtofile      - send the YAML to a file (see CRONSH_FILE).\n");
-	fprintf(stderr, "\t         sendtopipe      - send the YAML to the pipe (see CRONSH_PIPE).\n");
-	fprintf(stderr, "\t         sendfallback    - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
+	fprintf(stderr, "\t         silent              - nothing will be send to cron, file, nor pipe.\n");
+	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
+	fprintf(stderr, "\t         captur-estdout      - capture stdout.\n");
+	fprintf(stderr, "\t         captur-estderr      - capture stderr.\n");
+	fprintf(stderr, "\t         captur-eall         - capture stdout and stderr.\n");
+	fprintf(stderr, "\t         sendto-cron         - send the YAML to cron.\n");
+	fprintf(stderr, "\t         sendto-file         - send the YAML to a file (see CRONSH_FILE).\n");
+	fprintf(stderr, "\t         sendto-pipe         - send the YAML to the pipe (see CRONSH_PIPE).\n");
+	fprintf(stderr, "\t         sendto-all          - send the YAML to cron, file, and pipe.\n");
+	fprintf(stderr, "\t         sendto-fallback     - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
+	fprintf(stderr, "\t         sendif-status       - send the YAML only if the return status is not 0.\n");
+	fprintf(stderr, "\t         sendif-status-ok    - send the YAML only if the return status is 0.\n");
+	fprintf(stderr, "\t         sendif-status-any   - send the YAML on any return status.\n");
+	fprintf(stderr, "\t         sendif-signal       - send the YAML only if the signal status is not 0.\n");
+	fprintf(stderr, "\t         sendif-signal-ok    - send the YAML only if the signal status is 0.\n");
+	fprintf(stderr, "\t         sendif-signal-any   - send the YAML on any signal status.\n");
+	fprintf(stderr, "\t         sendif-stdout       - send the YAML only if there was output to stdout.\n");
+	fprintf(stderr, "\t         sendif-stdout-none  - send the YAML only if there was no output to stdout.\n");
+	fprintf(stderr, "\t         sendif-stdout-any   - send the YAML on any stdout value.\n");
+	fprintf(stderr, "\t         sendif-stderr       - send the YAML only if there was output to stderr.\n");
+	fprintf(stderr, "\t         sendif-stderr-none  - send the YAML only if there was no output to stderr.\n");
+	fprintf(stderr, "\t         sendif-stderr-any   - send the YAML on any stderr value.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
 	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
@@ -934,16 +977,31 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		// default cron behaviour. silent if no stdout and stderr
 		crondefault, !crondefault
 		// what to capture
-		capturestdout, !capturestdout
-		capturestderr, !capturestderr
-		captureall, !captureall
+		capture-stdout, !capture-stdout
+		capture-stderr, !capture-stderr
+		capture-all, !captur-eall
 		// where to send to
-		sendtocron, !sendtocron
-		sendtofile, !sendtofile
-		sendtopipe, !sendtopipe
-		sendtoall, !sendtoall
-		sendfallback, !sendfallback
+		sendto-cron, !sendto-cron
+		sendto-file, !sendto-file
+		sendto-pipe, !sendto-pipe
+		sendto-all, !sendto-all
+		sendto-fallback, !sendto-fallback
+		// when to send
+		sendif-status, !sendif-status
+		sendif-status-ok, !sendif-status-ok
+		sendif-status-any, !sendif-status-any
+		sendif-signal, !sendif-signal
+		sendif-signal-ok, !sendif-signal-ok
+		sendif-signal-any, !sendif-signal-any
+		sendif-stdout, !sendif-stdout
+		sendif-stdout-none, !sendif-stdout-none
+		sendif-stdout-any, !sendif-stdout-any
+		sendif-stderr, !sendif-stderr
+		sendif-stderr-none, !sendif-stderrn-one
+		sendif-stderr-any, !sendif-stderr-any
 	*/
+
+	// capture: stdout, stderr; send to: file, pipe; status: any; signal: any; stdout: none; stderr: 
 
 	while((token = strsep(&string, " ")) != NULL) {
 		negate = 0;
@@ -957,23 +1015,44 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		
 		if(!strcmp(token, "silent")) toption = CRONSH_OPTION_SILENT;
 		else if(!strcmp(token, "crondefault")) toption = CRONSH_OPTION_CRONDEFAULT;
-		else if(!strcmp(token, "capturestdout")) toption = CRONSH_OPTION_CAPTURESTDOUT;
-		else if(!strcmp(token, "capturestderr")) toption = CRONSH_OPTION_CAPTURESTDERR;
-		else if(!strcmp(token, "captureall")) toption = CRONSH_OPTION_CAPTUREALL;
-		else if(!strcmp(token, "sendtocron")) toption = CRONSH_OPTION_SENDTOCRON;
-		else if(!strcmp(token, "sendtofile")) toption = CRONSH_OPTION_SENDTOFILE;
-		else if(!strcmp(token, "sendtopipe")) toption = CRONSH_OPTION_SENDTOPIPE;
-		else if(!strcmp(token, "sendtoall")) toption = CRONSH_OPTION_SENDTOALL;
-		else if(!strcmp(token, "sendfallback")) toption = CRONSH_OPTION_SENDFALLBACK;
+
+		else if(!strcmp(token, "capture-stdout")) toption = CRONSH_OPTION_CAPTURE_STDOUT;
+		else if(!strcmp(token, "capture-stderr")) toption = CRONSH_OPTION_CAPTURE_STDERR;
+		else if(!strcmp(token, "capture-all")) toption = CRONSH_OPTION_CAPTURE_ALL;
+
+		else if(!strcmp(token, "sendto-cron")) toption = CRONSH_OPTION_SENDTO_CRON;
+		else if(!strcmp(token, "sendto-file")) toption = CRONSH_OPTION_SENDTO_FILE;
+		else if(!strcmp(token, "sendto-pipe")) toption = CRONSH_OPTION_SENDTO_PIPE;
+		else if(!strcmp(token, "sendto-all")) toption = CRONSH_OPTION_SENDTO_ALL;
+		else if(!strcmp(token, "sendto-fallback")) toption = CRONSH_OPTION_SENDTO_FALLBACK;
+
+		else if(!strcmp(token, "sendif-status")) toption = CRONSH_OPTION_SENDIF_STATUS;
+		else if(!strcmp(token, "sendif-status-ok")) toption = CRONSH_OPTION_SENDIF_STATUS_OK;
+		else if(!strcmp(token, "sendif-status-any")) toption = CRONSH_OPTION_SENDIF_STATUS_ANY;
+
+		else if(!strcmp(token, "sendif-signal")) toption = CRONSH_OPTION_SENDIF_SIGNAL;
+		else if(!strcmp(token, "sendif-signal-ok")) toption = CRONSH_OPTION_SENDIF_SIGNAL_OK;
+		else if(!strcmp(token, "sendif-signal-any")) toption = CRONSH_OPTION_SENDIF_SIGNAL_ANY;
+
+		else if(!strcmp(token, "sendif-stdout")) toption = CRONSH_OPTION_SENDIF_STDOUT;
+		else if(!strcmp(token, "sendif-stdout-none")) toption = CRONSH_OPTION_SENDIF_STDOUT_NONE;
+		else if(!strcmp(token, "sendif-stdout-any")) toption = CRONSH_OPTION_SENDIF_STDOUT_ANY;
+
+		else if(!strcmp(token, "sendif-stderr")) toption = CRONSH_OPTION_SENDIF_STDERR;
+		else if(!strcmp(token, "sendif-stderr-none")) toption = CRONSH_OPTION_SENDIF_STDERR_NONE;
+		else if(!strcmp(token, "sendif-stderr-any")) toption = CRONSH_OPTION_SENDIF_STDERR_ANY;
+
 		else {
 			toption = CRONSH_OPTION_NONE;
 			cronsh_log(CRONSH_LOGLEVEL_NOTICE, "unknown option: %s", token);
 		}
 		
-		if(negate == 1)
+		if(negate == 1) {
 			outoptions &= ~toption;
-		else
+		}
+		else {
 			outoptions |= toption;
+		}
 	}
 	
 	free(ref);
