@@ -35,10 +35,10 @@
 #define CRONSH_OPTION_CAPTURE_STDERR		(1 <<  2)
 #define CRONSH_OPTION_CAPTURE_ALL		(CRONSH_OPTION_CAPTURE_STDOUT | CRONSH_OPTION_CAPTURE_STDERR)
 // sendto options
-#define CRONSH_OPTION_SENDTO_CRON		(1 <<  3)
+#define CRONSH_OPTION_SENDTO_STDOUT		(1 <<  3)
 #define CRONSH_OPTION_SENDTO_FILE		(1 <<  4)
 #define CRONSH_OPTION_SENDTO_PIPE		(1 <<  5)
-#define CRONSH_OPTION_SENDTO_ALL		(CRONSH_OPTION_SENDTO_CRON | CRONSH_OPTION_SENDTO_FILE | CRONSH_OPTION_SENDTO_PIPE)
+#define CRONSH_OPTION_SENDTO_ALL		(CRONSH_OPTION_SENDTO_STDOUT | CRONSH_OPTION_SENDTO_FILE | CRONSH_OPTION_SENDTO_PIPE)
 #define CRONSH_OPTION_SENDTO_FALLBACK		(1 <<  6)
 // sendon options
 #define CRONSH_OPTION_SENDIF_STATUS		(1 <<  7)	// status != 0
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   crondefault                 = %s", CRONSH_OPTION(command->options, CRONDEFAULT) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   capture stdout              = %s", CRONSH_OPTION(command->options, CAPTURE_STDOUT) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   capture stderr              = %s", CRONSH_OPTION(command->options, CAPTURE_STDERR) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to cron                = %s", CRONSH_OPTION(command->options, SENDTO_CRON) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to stdout              = %s", CRONSH_OPTION(command->options, SENDTO_STDOUT) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to log                 = %s", CRONSH_OPTION(command->options, SENDTO_FILE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to pipe                = %s", CRONSH_OPTION(command->options, SENDTO_PIPE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send to fallback            = %s", CRONSH_OPTION(command->options, SENDTO_FALLBACK) ? "yes" : "no");
@@ -306,12 +306,12 @@ int main(int argc, char **argv) {
 		// write to cron
 		if(CRONSH_OPTION(command->options, CRONDEFAULT)) {
 			if(command->stdoutbuffer.used == 0 && command->stderrbuffer.used == 0 && command->status == 0) {
-				command->options &= ~CRONSH_OPTION_SENDTO_CRON;
+				command->options &= ~CRONSH_OPTION_SENDTO_STDOUT;
 			}
 		}
 		
-		if(CRONSH_OPTION(command->options, SENDTO_CRON)) {
-			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to cron");
+		if(CRONSH_OPTION(command->options, SENDTO_STDOUT)) {
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to stdout");
 			fprintf(stdout, "%s", outbuffer.data);
 		}
 	}
@@ -337,7 +337,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "DESCRIPTION\n");
 	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
 	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command, all captured data is arranged in a YAML document.\n");
-	fprintf(stderr, "\tThis document will be sent to cron, written to a file (see CRONSH_FILE), or piped to an other command (see\n");
+	fprintf(stderr, "\tThis document will be sent to stdout, written to a file (see CRONSH_FILE), or piped to an other command (see\n");
 	fprintf(stderr, "\tCRONSH_PIPE). Set CRONSH_OPTIONS for specifying the default behaviour.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
@@ -406,7 +406,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         captur-estdout      - capture stdout.\n");
 	fprintf(stderr, "\t         captur-estderr      - capture stderr.\n");
 	fprintf(stderr, "\t         captur-eall         - capture stdout and stderr.\n");
-	fprintf(stderr, "\t         sendto-cron         - send the YAML to cron.\n");
+	fprintf(stderr, "\t         sendto-stdout       - send the YAML to stdout.\n");
 	fprintf(stderr, "\t         sendto-file         - send the YAML to a file (see CRONSH_FILE).\n");
 	fprintf(stderr, "\t         sendto-pipe         - send the YAML to the pipe (see CRONSH_PIPE).\n");
 	fprintf(stderr, "\t         sendto-all          - send the YAML to cron, file, and pipe.\n");
@@ -986,7 +986,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		capture-stderr, !capture-stderr
 		capture-all, !captur-eall
 		// where to send to
-		sendto-cron, !sendto-cron
+		sendto-stdout, !sendto-stdout
 		sendto-file, !sendto-file
 		sendto-pipe, !sendto-pipe
 		sendto-all, !sendto-all
@@ -1015,8 +1015,9 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 			negate = 1;
 		}
 
-		if(strlen(token) == 0)
+		if(strlen(token) == 0) {
 			continue;
+		}
 		
 		if(!strcmp(token, "silent")) toption = CRONSH_OPTION_SILENT;
 		else if(!strcmp(token, "crondefault")) toption = CRONSH_OPTION_CRONDEFAULT;
@@ -1025,7 +1026,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		else if(!strcmp(token, "capture-stderr")) toption = CRONSH_OPTION_CAPTURE_STDERR;
 		else if(!strcmp(token, "capture-all")) toption = CRONSH_OPTION_CAPTURE_ALL;
 
-		else if(!strcmp(token, "sendto-cron")) toption = CRONSH_OPTION_SENDTO_CRON;
+		else if(!strcmp(token, "sendto-stdout")) toption = CRONSH_OPTION_SENDTO_STDOUT;
 		else if(!strcmp(token, "sendto-file")) toption = CRONSH_OPTION_SENDTO_FILE;
 		else if(!strcmp(token, "sendto-pipe")) toption = CRONSH_OPTION_SENDTO_PIPE;
 		else if(!strcmp(token, "sendto-all")) toption = CRONSH_OPTION_SENDTO_ALL;
