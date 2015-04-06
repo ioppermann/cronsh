@@ -156,7 +156,6 @@ float difftimespec(struct timespec *start, struct timespec *stop) {
 	return ((float)t.tv_sec + ((float)t.tv_nsec / 1000000000.0));
 }
 
-
 int main(int argc, char **argv) {
 	int c;
 	char *rawcommand = NULL;
@@ -349,122 +348,6 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
-void cronsh_help(void) {
-	fprintf(stderr, "NAME\n");
-	fprintf(stderr, "\tcronsh - a shell for executing cron jobs\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "SYNOPSIS\n");
-	fprintf(stderr, "\tcronsh -c command -h\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "DESCRIPTION\n");
-	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
-	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command, all captured data is arranged in a YAML document.\n");
-	fprintf(stderr, "\tThis document will be sent to stdout, written to a file (see CRONSH_FILE), or piped to an other command (see\n");
-	fprintf(stderr, "\tCRONSH_PIPE). Set CRONSH_OPTIONS for specifying the default behaviour.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
-	fprintf(stderr, "\tit with the -c option and the command line as its value. The anatomy of the command line is:\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\t   [executable] [arguments]? #[tag]? [options]?\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tEverything after (and including) the first # will not be part of the executed command and its arguments. Directly following\n");
-	fprintf(stderr, "\tthe # up to the first blank or the end of the line is considered as a tag for this command. Associating a tag is optional.\n");
-	fprintf(stderr, "\tThe options for the command are inherited from CRONSH_OPTIONS and can be modified by specifying addional options. This is\n");
-	fprintf(stderr, "\toptional.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tThe anatomy of the YAML is:\n");
-
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\t---\n");
-	fprintf(stderr, "\ttype: cron\n");
-	fprintf(stderr, "\thostname: Ingos-MacBook-Air.local                                   - CRONSH_HOSTNAME or gethostname().\n");
-	fprintf(stderr, "\tuser: ioppermann                                                    - USER or LOGNAME.\n");
-	fprintf(stderr, "\trawcommand: /usr/bin/printf 'hello world' #tag sendtolog            - crontab command line.\n");
-	fprintf(stderr, "\tcommand:                                                            - executed command.\n");
-	fprintf(stderr, "\t  - /usr/bin/printf\n");
-	fprintf(stderr, "\t  - hello world\n");
-	fprintf(stderr, "\ttag: tag                                                            - tag as specified in rawcommand.\n");
-	fprintf(stderr, "\tstarttime: 1396712280                                               - UNIX timestamp.\n");
-	fprintf(stderr, "\truntime: 3                                                          - runtime in milliseconds.\n");
-	fprintf(stderr, "\tpid: 4471                                                           - PID of the excuted command.\n");
-	fprintf(stderr, "\tppid: 4470                                                          - PID of cronsh.\n");
-	fprintf(stderr, "\tstatus: 0                                                           - exit status of executed command.\n");
-	fprintf(stderr, "\tsignal: 0                                                           - signal that caused exiting.\n");
-	fprintf(stderr, "\tstdout: hello world                                                 - captured stdout.\n");
-	fprintf(stderr, "\tstderr:                                                             - captured stderr.\n");
-	fprintf(stderr, "\t...\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "OPTIONS\n");
-	fprintf(stderr, "\t-c command\n");
-	fprintf(stderr, "\t    The command to execute.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\t-h\n");
-	fprintf(stderr, "\t    Display the help screen.\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "ENVIRONMENT\n");
-	fprintf(stderr, "\tThese environment variables are recognized by cronsh and can be set in the crontab.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_LOGLEVEL\n");
-	fprintf(stderr, "\t    Set the logging verbosity for messages written to CRONSH_LOG. Valid verbosity levels are:\n");
-	fprintf(stderr, "\t         debug     - very verbose logging, includes warn and critical.\n");
-	fprintf(stderr, "\t         notice    - less verbose logging, includes critical.\n");
-	fprintf(stderr, "\t         critical  - only logs events that prevent the proper execution of cronsh.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_LOG\n");
-	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_FILE\n");
-	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtofile' is given.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_PIPE\n");
-	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_OPTIONS\n");
-	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
-	fprintf(stderr, "\t         silent              - nothing will be send to cron, file, nor pipe.\n");
-	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
-	fprintf(stderr, "\t         captur-estdout      - capture stdout.\n");
-	fprintf(stderr, "\t         captur-estderr      - capture stderr.\n");
-	fprintf(stderr, "\t         captur-eall         - capture stdout and stderr.\n");
-	fprintf(stderr, "\t         sendto-stdout       - send the YAML to stdout.\n");
-	fprintf(stderr, "\t         sendto-file         - send the YAML to a file (see CRONSH_FILE).\n");
-	fprintf(stderr, "\t         sendto-pipe         - send the YAML to the pipe (see CRONSH_PIPE).\n");
-	fprintf(stderr, "\t         sendto-all          - send the YAML to cron, file, and pipe.\n");
-	fprintf(stderr, "\t         sendto-fallback     - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
-	fprintf(stderr, "\t         sendif-status       - send the YAML only if the return status is not 0.\n");
-	fprintf(stderr, "\t         sendif-status-ok    - send the YAML only if the return status is 0.\n");
-	fprintf(stderr, "\t         sendif-status-any   - send the YAML on any return status.\n");
-	fprintf(stderr, "\t         sendif-signal       - send the YAML only if the signal status is not 0.\n");
-	fprintf(stderr, "\t         sendif-signal-ok    - send the YAML only if the signal status is 0.\n");
-	fprintf(stderr, "\t         sendif-signal-any   - send the YAML on any signal status.\n");
-	fprintf(stderr, "\t         sendif-stdout       - send the YAML only if there was output to stdout.\n");
-	fprintf(stderr, "\t         sendif-stdout-none  - send the YAML only if there was no output to stdout.\n");
-	fprintf(stderr, "\t         sendif-stdout-any   - send the YAML on any stdout value.\n");
-	fprintf(stderr, "\t         sendif-stderr       - send the YAML only if there was output to stderr.\n");
-	fprintf(stderr, "\t         sendif-stderr-none  - send the YAML only if there was no output to stderr.\n");
-	fprintf(stderr, "\t         sendif-stderr-any   - send the YAML on any stderr value.\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
-	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "\tUSER / LOGNAME\n");
-	fprintf(stderr, "\t    The user who owns this crontab and this command will be run as. See the man page for crontab.\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "BUGS\n");
-	fprintf(stderr, "\tNo known bugs (but probably there are some).\n");
-	fprintf(stderr, "\n");
-
-	fprintf(stderr, "AUTHOR\n");
-	fprintf(stderr, "\t(c) 2014+ Ingo Oppermann\n");
-
-	return;
-}
-
 int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 	int rv;
 	command_t *command;
@@ -486,7 +369,6 @@ int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 
 	return rv;
 }
-
 
 void cronsh_command_spawn(command_t *command) {
 /*
@@ -1122,6 +1004,122 @@ void cronsh_log(int loglevel, const char *format, ...) {
 	fprintf(config.logfp, "[%s] %s %u: %s\n", datetime, l, config.pid, message);
 	
 	fflush(config.logfp);
+
+	return;
+}
+
+void cronsh_help(void) {
+	fprintf(stderr, "NAME\n");
+	fprintf(stderr, "\tcronsh - a shell for executing cron jobs\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "SYNOPSIS\n");
+	fprintf(stderr, "\tcronsh -c command -h\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "DESCRIPTION\n");
+	fprintf(stderr, "\tcronsh (or cronshell) is a shell for executing cron jobs. It collects stdout, stderr, the return code, and other\n");
+	fprintf(stderr, "\tvalues from the command it runs. At the end of executing the command, all captured data is arranged in a YAML document.\n");
+	fprintf(stderr, "\tThis document will be sent to stdout, written to a file (see CRONSH_FILE), or piped to an other command (see\n");
+	fprintf(stderr, "\tCRONSH_PIPE). Set CRONSH_OPTIONS for specifying the default behaviour.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tIn the crontab, point the SHELL environment variable to cronsh. cron will then execute cronsh by calling\n");
+	fprintf(stderr, "\tit with the -c option and the command line as its value. The anatomy of the command line is:\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t   [executable] [arguments]? #[tag]? [options]?\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tEverything after (and including) the first # will not be part of the executed command and its arguments. Directly following\n");
+	fprintf(stderr, "\tthe # up to the first blank or the end of the line is considered as a tag for this command. Associating a tag is optional.\n");
+	fprintf(stderr, "\tThe options for the command are inherited from CRONSH_OPTIONS and can be modified by specifying addional options. This is\n");
+	fprintf(stderr, "\toptional.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tThe anatomy of the YAML is:\n");
+
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t---\n");
+	fprintf(stderr, "\ttype: cron\n");
+	fprintf(stderr, "\thostname: Ingos-MacBook-Air.local                                   - CRONSH_HOSTNAME or gethostname().\n");
+	fprintf(stderr, "\tuser: ioppermann                                                    - USER or LOGNAME.\n");
+	fprintf(stderr, "\trawcommand: /usr/bin/printf 'hello world' #tag sendtolog            - crontab command line.\n");
+	fprintf(stderr, "\tcommand:                                                            - executed command.\n");
+	fprintf(stderr, "\t  - /usr/bin/printf\n");
+	fprintf(stderr, "\t  - hello world\n");
+	fprintf(stderr, "\ttag: tag                                                            - tag as specified in rawcommand.\n");
+	fprintf(stderr, "\tstarttime: 1396712280                                               - UNIX timestamp.\n");
+	fprintf(stderr, "\truntime: 3                                                          - runtime in milliseconds.\n");
+	fprintf(stderr, "\tpid: 4471                                                           - PID of the excuted command.\n");
+	fprintf(stderr, "\tppid: 4470                                                          - PID of cronsh.\n");
+	fprintf(stderr, "\tstatus: 0                                                           - exit status of executed command.\n");
+	fprintf(stderr, "\tsignal: 0                                                           - signal that caused exiting.\n");
+	fprintf(stderr, "\tstdout: hello world                                                 - captured stdout.\n");
+	fprintf(stderr, "\tstderr:                                                             - captured stderr.\n");
+	fprintf(stderr, "\t...\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "OPTIONS\n");
+	fprintf(stderr, "\t-c command\n");
+	fprintf(stderr, "\t    The command to execute.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-h\n");
+	fprintf(stderr, "\t    Display the help screen.\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "ENVIRONMENT\n");
+	fprintf(stderr, "\tThese environment variables are recognized by cronsh and can be set in the crontab.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_LOGLEVEL\n");
+	fprintf(stderr, "\t    Set the logging verbosity for messages written to CRONSH_LOG. Valid verbosity levels are:\n");
+	fprintf(stderr, "\t         debug     - very verbose logging, includes warn and critical.\n");
+	fprintf(stderr, "\t         notice    - less verbose logging, includes critical.\n");
+	fprintf(stderr, "\t         critical  - only logs events that prevent the proper execution of cronsh.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_LOG\n");
+	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_FILE\n");
+	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtofile' is given.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_PIPE\n");
+	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_OPTIONS\n");
+	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
+	fprintf(stderr, "\t         silent              - nothing will be send to cron, file, nor pipe.\n");
+	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
+	fprintf(stderr, "\t         capture-stdout      - capture stdout.\n");
+	fprintf(stderr, "\t         capture-stderr      - capture stderr.\n");
+	fprintf(stderr, "\t         capture-all         - capture stdout and stderr.\n");
+	fprintf(stderr, "\t         sendto-stdout       - send the YAML to stdout.\n");
+	fprintf(stderr, "\t         sendto-file         - send the YAML to a file (see CRONSH_FILE).\n");
+	fprintf(stderr, "\t         sendto-pipe         - send the YAML to the pipe (see CRONSH_PIPE).\n");
+	fprintf(stderr, "\t         sendto-all          - send the YAML to cron, file, and pipe.\n");
+	fprintf(stderr, "\t         sendto-fallback     - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
+	fprintf(stderr, "\t         sendif-status       - send the YAML only if the return status is not 0.\n");
+	fprintf(stderr, "\t         sendif-status-ok    - send the YAML only if the return status is 0.\n");
+	fprintf(stderr, "\t         sendif-status-any   - send the YAML on any return status.\n");
+	fprintf(stderr, "\t         sendif-signal       - send the YAML only if the signal status is not 0.\n");
+	fprintf(stderr, "\t         sendif-signal-ok    - send the YAML only if the signal status is 0.\n");
+	fprintf(stderr, "\t         sendif-signal-any   - send the YAML on any signal status.\n");
+	fprintf(stderr, "\t         sendif-stdout       - send the YAML only if there was output to stdout.\n");
+	fprintf(stderr, "\t         sendif-stdout-none  - send the YAML only if there was no output to stdout.\n");
+	fprintf(stderr, "\t         sendif-stdout-any   - send the YAML on any stdout value.\n");
+	fprintf(stderr, "\t         sendif-stderr       - send the YAML only if there was output to stderr.\n");
+	fprintf(stderr, "\t         sendif-stderr-none  - send the YAML only if there was no output to stderr.\n");
+	fprintf(stderr, "\t         sendif-stderr-any   - send the YAML on any stderr value.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
+	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\tUSER / LOGNAME\n");
+	fprintf(stderr, "\t    The user who owns this crontab and this command will be run as. See the man page for crontab.\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "BUGS\n");
+	fprintf(stderr, "\tNo known bugs (but probably there are some).\n");
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "AUTHOR\n");
+	fprintf(stderr, "\t(c) 2014+ Ingo Oppermann\n");
 
 	return;
 }
