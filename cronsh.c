@@ -995,10 +995,10 @@ void cronsh_log(int loglevel, const char *format, ...) {
 	va_end(ap);
 
 	switch(loglevel) {
-		case CRONSH_LOGLEVEL_DEBUG: l = "DEBG"; break;
-		case CRONSH_LOGLEVEL_NOTICE: l = "NOTE"; break;
-		case CRONSH_LOGLEVEL_CRITICAL: l = "CRIT"; break;
-		default: l = "UNKN"; break;
+		case CRONSH_LOGLEVEL_DEBUG: l = "DEBUG"; break;
+		case CRONSH_LOGLEVEL_NOTICE: l = "NOTICE"; break;
+		case CRONSH_LOGLEVEL_CRITICAL: l = "CRITICAL"; break;
+		default: l = "UNKNOWN"; break;
 	}
 
 	fprintf(config.logfp, "[%s] %s %u: %s\n", datetime, l, config.pid, message);
