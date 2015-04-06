@@ -529,7 +529,7 @@ void cronsh_command_spawn(command_t *command) {
 		close(childstderrfd[0]);
 		dup2(childstderrfd[1], 2);
 
-		execve(command->argv[0], command->argv, NULL);
+		execvp(command->argv[0], command->argv);
 
 		fprintf(stderr, "failed to execute '%s': %s (%d)", command->argv[0], strerror(errno), errno);
 
