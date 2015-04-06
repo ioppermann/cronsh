@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -54,7 +55,7 @@
 #define CRONSH_OPTION_SENDIF_STDERR_NONE	(1 << 14)	// stderr == ''
 #define CRONSH_OPTION_SENDIF_STDERR_ANY		(CRONSH_OPTION_SENDIF_STDERR | CRONSH_OPTION_SENDIF_STDERR_NONE)
 // cron default options
-#define CRONSH_OPTION_CRONDEFAULT		(CRONSH_OPTION_SENDIF_STATUS_ANY | CRONSH_OPTION_SENDIF_SIGNAL_ANY | CRONSH_OPTION_SENDIF_STDOUT | CRONSH_OPTION_SENDIF_STDERR)
+#define CRONSH_OPTION_CRONDEFAULT		(CRONSH_OPTION_CAPTURE_ALL | CRONSH_OPTION_SENDTO_STDOUT | CRONSH_OPTION_SENDIF_STATUS_ANY | CRONSH_OPTION_SENDIF_SIGNAL_ANY | CRONSH_OPTION_SENDIF_STDOUT | CRONSH_OPTION_SENDIF_STDERR)
 
 #define CRONSH_OPTION(a, o) ((((a) & CRONSH_OPTION_ ## o) == CRONSH_OPTION_ ## o))
 
@@ -274,23 +275,48 @@ int main(int argc, char **argv) {
 
 	bufferAppendString(&outbuffer, "...\n");
 
+	// check if we have to send anything
+	int sendif = 0;
+
+	if(CRONSH_OPTION(command->options, SENDIF_STATUS)) { if(command->status != 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STATUS_OK)) { if(command->status == 0) { sendif = 1; }}
+
+	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL)) { if(command->signal != 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL_OK)) { if(command->signal == 0) { sendif = 1; }}
+
+	if(CRONSH_OPTION(command->options, SENDIF_STDOUT)) { if(command->stdoutbuffer.used != 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STDOUT_NONE)) { if(command->stdoutbuffer.used == 0) { sendif = 1; }}
+
+	if(CRONSH_OPTION(command->options, SENDIF_STDERR)) { if(command->stderrbuffer.used != 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STDERR_NONE)) { if(command->stderrbuffer.used == 0) { sendif = 1; }}
+
+	// if we don't have to send anything, we're going into silent mode
+	if(sendif == 0) {
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "we should not send anything");
+		command->options |= CRONSH_OPTION_SILENT;
+	}
+
 	if(!CRONSH_OPTION(command->options, SILENT)) {
 		// write to pipe
 		if(CRONSH_OPTION(command->options, SENDTO_PIPE)) {
-			int rv = cronsh_pipe(config.pipe, &outbuffer);
-			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to pipe (%d)", rv);
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to pipe");
 
+			int rv = cronsh_pipe(config.pipe, &outbuffer);
 			if(rv == 0) {
 				// if the fallback option was set, don't send it any further
 				if(CRONSH_OPTION(command->options, SENDTO_FALLBACK)) {
 					command->options &= ~CRONSH_OPTION_SENDTO_ALL;
 				}
 			}
+			else {
+				cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "failed sending to pipe (%d)", rv);
+			}
 		}
 
-		// write to log
+		// write to file
 		if(CRONSH_OPTION(command->options, SENDTO_FILE)) {
-			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to logfile");
+			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to file");
+
 			FILE *fp = fopen(config.file, "a");
 			if(fp != NULL) {
 				fprintf(fp, "%s", outbuffer.data);
@@ -301,17 +327,15 @@ int main(int argc, char **argv) {
 					command->options &= ~CRONSH_OPTION_SENDTO_ALL;
 				}
 			}
-		}
-
-		// write to cron
-		if(CRONSH_OPTION(command->options, CRONDEFAULT)) {
-			if(command->stdoutbuffer.used == 0 && command->stderrbuffer.used == 0 && command->status == 0) {
-				command->options &= ~CRONSH_OPTION_SENDTO_STDOUT;
+			else {
+				cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "failed sending to file (%s)", strerror(errno));
 			}
 		}
-		
+
+		// write to stdout
 		if(CRONSH_OPTION(command->options, SENDTO_STDOUT)) {
 			cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to stdout");
+
 			fprintf(stdout, "%s", outbuffer.data);
 		}
 	}
