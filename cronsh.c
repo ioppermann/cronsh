@@ -245,7 +245,6 @@ int main(int argc, char **argv) {
 	bufferInit(&outbuffer, CRONSH_BUFFER_STEPSIZE);
 	
 	bufferAppendString(&outbuffer, "---\n");
-	bufferAppendYAML(&outbuffer, 0, "type", "cron");
 	bufferAppendYAML(&outbuffer, 0, "hostname", "%s", config.thishostname);
 	bufferAppendYAML(&outbuffer, 0, "user", "%s", config.thisuser);
 	bufferAppendYAML(&outbuffer, 0, "rawcommand", "%s", rawcommand);
