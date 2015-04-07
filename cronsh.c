@@ -272,6 +272,25 @@ int main(int argc, char **argv) {
 	
 	bufferAppendYAML(&outbuffer, 0, "stderr", "%s", command->stderrbuffer.data);
 
+	bufferAppendYAML(&outbuffer, 0, "rusage", "");
+
+	bufferAppendYAML(&outbuffer, 1, "utime", "%ld", command->rusage.ru_utime.tv_sec * 1000 + command->rusage.ru_utime.tv_usec / 1000);	// user time used
+	bufferAppendYAML(&outbuffer, 1, "stime", "%ld", command->rusage.ru_stime.tv_sec * 1000 + command->rusage.ru_stime.tv_usec / 1000);	// system time used
+	bufferAppendYAML(&outbuffer, 1, "maxrss", "%ld", command->rusage.ru_maxrss);		// max resident set size
+	bufferAppendYAML(&outbuffer, 1, "ixrss", "%ld", command->rusage.ru_ixrss);		// integral shared text memory size
+	bufferAppendYAML(&outbuffer, 1, "idrss", "%ld", command->rusage.ru_idrss);		// integral unshared data size
+	bufferAppendYAML(&outbuffer, 1, "isrss", "%ld", command->rusage.ru_isrss);		// integral unshared stack size
+	bufferAppendYAML(&outbuffer, 1, "minflt", "%ld", command->rusage.ru_minflt);		// page reclaims
+	bufferAppendYAML(&outbuffer, 1, "majflt", "%ld", command->rusage.ru_majflt);		// page faults
+	bufferAppendYAML(&outbuffer, 1, "nswap", "%ld", command->rusage.ru_nswap);		// swaps
+	bufferAppendYAML(&outbuffer, 1, "inblock", "%ld", command->rusage.ru_inblock);		// block input operations
+	bufferAppendYAML(&outbuffer, 1, "oublock", "%ld", command->rusage.ru_oublock);		// block output operations
+	bufferAppendYAML(&outbuffer, 1, "msgsnd", "%ld", command->rusage.ru_msgsnd);		// messages sent
+	bufferAppendYAML(&outbuffer, 1, "msgrcv", "%ld", command->rusage.ru_msgrcv);		// messages received
+	bufferAppendYAML(&outbuffer, 1, "nsignals", "%ld", command->rusage.ru_nsignals);	// signals received
+	bufferAppendYAML(&outbuffer, 1, "nvcsw", "%ld", command->rusage.ru_nvcsw);		// voluntary context switches
+	bufferAppendYAML(&outbuffer, 1, "nivcsw", "%ld", command->rusage.ru_nivcsw);		// involuntary context switches
+
 	bufferAppendString(&outbuffer, "...\n");
 
 	// check if we have to send anything
