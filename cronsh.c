@@ -41,7 +41,7 @@
 #define CRONSH_OPTION_SENDTO_PIPE		(1 <<  5)
 #define CRONSH_OPTION_SENDTO_ALL		(CRONSH_OPTION_SENDTO_STDOUT | CRONSH_OPTION_SENDTO_FILE | CRONSH_OPTION_SENDTO_PIPE)
 #define CRONSH_OPTION_SENDTO_FALLBACK		(1 <<  6)
-// sendon options
+// sendif options
 #define CRONSH_OPTION_SENDIF_STATUS		(1 <<  7)	// status != 0
 #define CRONSH_OPTION_SENDIF_STATUS_OK		(1 <<  8)	// status == 0
 #define CRONSH_OPTION_SENDIF_STATUS_ANY		(CRONSH_OPTION_SENDIF_STATUS_OK | CRONSH_OPTION_SENDIF_STATUS)
@@ -117,12 +117,18 @@ void cronsh_command_free(command_t *command);
 void cronsh_command_options(command_t *command);
 void cronsh_command_spawn(command_t *command);
 
+
+/* buffer facility */
+
 int bufferInit(buffer_t *buffer, size_t nbytes);
 int bufferFree(buffer_t *buffer);
 int bufferReset(buffer_t *buffer);
 int bufferAppendBuffer(buffer_t *dst, buffer_t *src);
 int bufferAppendString(buffer_t *dst, const char *format, ...);
 int bufferAppendBytes(buffer_t *dst, const char *bytes, size_t nbytes);
+
+int bufferStartYAML(buffer_t *dst);
+int bufferEndYAML(buffer_t *dst);
 int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, ...);
 int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, char **list);
 
@@ -220,10 +226,10 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is not 0     = %s", CRONSH_OPTION(command->options, SENDIF_SIGNAL) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is 0         = %s", CRONSH_OPTION(command->options, SENDIF_SIGNAL_OK) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if signal is anything  = %s", CRONSH_OPTION(command->options, SENDIF_SIGNAL_ANY) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if there is stdout     = %s", CRONSH_OPTION(command->options, SENDIF_STDOUT) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stdout is not empty = %s", CRONSH_OPTION(command->options, SENDIF_STDOUT) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stdout is empty     = %s", CRONSH_OPTION(command->options, SENDIF_STDOUT_NONE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stdout is anything  = %s", CRONSH_OPTION(command->options, SENDIF_STDOUT_ANY) ? "yes" : "no");
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if there is stderr     = %s", CRONSH_OPTION(command->options, SENDIF_STDERR) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is not empty = %s", CRONSH_OPTION(command->options, SENDIF_STDERR) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is empty     = %s", CRONSH_OPTION(command->options, SENDIF_STDERR_NONE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is anything  = %s", CRONSH_OPTION(command->options, SENDIF_STDERR_ANY) ? "yes" : "no");
 
@@ -236,6 +242,9 @@ int main(int argc, char **argv) {
 	
 	clock_gettime(CLOCK_MONOTONIC, &stoptime);
 
+	// finished executing the actual command
+
+
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d, signal: %d", command->status, command->signal);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
@@ -244,7 +253,7 @@ int main(int argc, char **argv) {
 
 	bufferInit(&outbuffer, CRONSH_BUFFER_STEPSIZE);
 	
-	bufferAppendString(&outbuffer, "---\n");
+	bufferStartYAML(&outbuffer);
 	bufferAppendYAML(&outbuffer, 0, "hostname", "%s", config.thishostname);
 	bufferAppendYAML(&outbuffer, 0, "user", "%s", config.thisuser);
 	bufferAppendYAML(&outbuffer, 0, "rawcommand", "%s", rawcommand);
@@ -253,7 +262,7 @@ int main(int argc, char **argv) {
 
 	bufferAppendYAML(&outbuffer, 0, "tag", "%s", (command->tag != NULL) ? command->tag : "");
 	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", utcstarttime);
-	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", (int)(difftimespec(&starttime, &stoptime) * 1000));
+	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", (unsigned long)(difftimespec(&starttime, &stoptime) * 1000));
 	bufferAppendYAML(&outbuffer, 0, "pid", "%u", command->pid);
 	bufferAppendYAML(&outbuffer, 0, "ppid", "%u", command->ppid);
 	bufferAppendYAML(&outbuffer, 0, "status", "%d", command->status);
@@ -290,7 +299,7 @@ int main(int argc, char **argv) {
 	bufferAppendYAML(&outbuffer, 1, "nvcsw", "%ld", command->rusage.ru_nvcsw);		// voluntary context switches
 	bufferAppendYAML(&outbuffer, 1, "nivcsw", "%ld", command->rusage.ru_nivcsw);		// involuntary context switches
 
-	bufferAppendString(&outbuffer, "...\n");
+	bufferEndYAML(&outbuffer);
 
 	// check if we have to send anything
 	int sendif = 0;
@@ -660,7 +669,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	command->ppid = config.pid;
 
 	// collapse & separate individual commands
-	// i.e. to put \0 between every individual command
+	// i.e. put \0 between every individual command
 /*
 	behaviour
 	:quotes: = " '
@@ -908,7 +917,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		// what to capture
 		capture-stdout, !capture-stdout
 		capture-stderr, !capture-stderr
-		capture-all, !captur-eall
+		capture-all, !capture-all
 		// where to send to
 		sendto-stdout, !sendto-stdout
 		sendto-file, !sendto-file
@@ -926,10 +935,11 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		sendif-stdout-none, !sendif-stdout-none
 		sendif-stdout-any, !sendif-stdout-any
 		sendif-stderr, !sendif-stderr
-		sendif-stderr-none, !sendif-stderrn-one
+		sendif-stderr-none, !sendif-stderr-none
 		sendif-stderr-any, !sendif-stderr-any
 	*/
 
+	// idea for alternative syntax:
 	// capture: stdout, stderr; send to: file, pipe; status: any; signal: any; stdout: none; stderr: 
 
 	while((token = strsep(&string, " ")) != NULL) {
@@ -1055,10 +1065,9 @@ void cronsh_help(void) {
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\t---\n");
-	fprintf(stderr, "\ttype: cron\n");
 	fprintf(stderr, "\thostname: Ingos-MacBook-Air.local                                   - CRONSH_HOSTNAME or gethostname().\n");
 	fprintf(stderr, "\tuser: ioppermann                                                    - USER or LOGNAME.\n");
-	fprintf(stderr, "\trawcommand: /usr/bin/printf 'hello world' #tag sendtolog            - crontab command line.\n");
+	fprintf(stderr, "\trawcommand: /usr/bin/printf 'hello world' #tag sendto-file          - crontab command line.\n");
 	fprintf(stderr, "\tcommand:                                                            - executed command.\n");
 	fprintf(stderr, "\t  - /usr/bin/printf\n");
 	fprintf(stderr, "\t  - hello world\n");
@@ -1071,6 +1080,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\tsignal: 0                                                           - signal that caused exiting.\n");
 	fprintf(stderr, "\tstdout: hello world                                                 - captured stdout.\n");
 	fprintf(stderr, "\tstderr:                                                             - captured stderr.\n");
+	fprintf(stderr, "\trusage:                                                             - the values of the rusage struct.\n");
 	fprintf(stderr, "\t...\n");
 	fprintf(stderr, "\n");
 
@@ -1095,14 +1105,14 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_FILE\n");
-	fprintf(stderr, "\t    Path to the file where to write the YAML documents from every command to if the option 'sendtofile' is given.\n");
+	fprintf(stderr, "\t    Write the YAML document to this file if the option 'sendto-file' is given.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_PIPE\n");
-	fprintf(stderr, "\t    A command that will be executed after the cron job finished. The YAML document will be written to stdin of this command.\n");
+	fprintf(stderr, "\t    Write the YAML document to STDIN of this command if the option 'sendto-pipe' is given.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
-	fprintf(stderr, "\t    Set the different options to define the behaviour of crons. valid options are:\n");
-	fprintf(stderr, "\t         silent              - nothing will be send to cron, file, nor pipe.\n");
+	fprintf(stderr, "\t    Set the different options to define the default behaviour of cronsh. Valid options are:\n");
+	fprintf(stderr, "\t         silent              - nothing will be send neither to cron, file, nor pipe.\n");
 	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
 	fprintf(stderr, "\t         capture-stdout      - capture stdout.\n");
 	fprintf(stderr, "\t         capture-stderr      - capture stderr.\n");
@@ -1111,7 +1121,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         sendto-file         - send the YAML to a file (see CRONSH_FILE).\n");
 	fprintf(stderr, "\t         sendto-pipe         - send the YAML to the pipe (see CRONSH_PIPE).\n");
 	fprintf(stderr, "\t         sendto-all          - send the YAML to cron, file, and pipe.\n");
-	fprintf(stderr, "\t         sendto-fallback     - send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
+	fprintf(stderr, "\t         sendto-fallback     - try to send the YAML first to pipe, then to file, and then cron if the previous didn't work.\n");
 	fprintf(stderr, "\t         sendif-status       - send the YAML only if the return status is not 0.\n");
 	fprintf(stderr, "\t         sendif-status-ok    - send the YAML only if the return status is 0.\n");
 	fprintf(stderr, "\t         sendif-status-any   - send the YAML on any return status.\n");
@@ -1248,6 +1258,14 @@ int bufferAppendBuffer(buffer_t *dst, buffer_t *src) {
 		return 0;
 
 	return bufferAppendBytes(dst, src->data, src->used);
+}
+
+int bufferStartYAML(buffer_t *dst) {
+	return bufferAppendString(dst, "---\n");
+}
+
+int bufferEndYAML(buffer_t *dst) {
+	return bufferAppendString(dst, "...\n");
 }
 
 int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, ...) {
