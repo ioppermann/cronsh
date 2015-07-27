@@ -304,17 +304,17 @@ int main(int argc, char **argv) {
 	// check if we have to send anything
 	int sendif = 0;
 
-	if(CRONSH_OPTION(command->options, SENDIF_STATUS)) { if(command->status != 0) { sendif = 1; }}
-	if(CRONSH_OPTION(command->options, SENDIF_STATUS_OK)) { if(command->status == 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STATUS)) { if(command->status != 0) { sendif = 1; } }
+	if(CRONSH_OPTION(command->options, SENDIF_STATUS_OK)) { if(command->status == 0) { sendif = 1; } }
 
-	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL)) { if(command->signal != 0) { sendif = 1; }}
-	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL_OK)) { if(command->signal == 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL)) { if(command->signal != 0) { sendif = 1; } }
+	if(CRONSH_OPTION(command->options, SENDIF_SIGNAL_OK)) { if(command->signal == 0) { sendif = 1; } }
 
-	if(CRONSH_OPTION(command->options, SENDIF_STDOUT)) { if(command->stdoutbuffer.used != 0) { sendif = 1; }}
-	if(CRONSH_OPTION(command->options, SENDIF_STDOUT_NONE)) { if(command->stdoutbuffer.used == 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STDOUT)) { if(command->stdoutbuffer.used != 0) { sendif = 1; } }
+	if(CRONSH_OPTION(command->options, SENDIF_STDOUT_NONE)) { if(command->stdoutbuffer.used == 0) { sendif = 1; } }
 
-	if(CRONSH_OPTION(command->options, SENDIF_STDERR)) { if(command->stderrbuffer.used != 0) { sendif = 1; }}
-	if(CRONSH_OPTION(command->options, SENDIF_STDERR_NONE)) { if(command->stderrbuffer.used == 0) { sendif = 1; }}
+	if(CRONSH_OPTION(command->options, SENDIF_STDERR)) { if(command->stderrbuffer.used != 0) { sendif = 1; } }
+	if(CRONSH_OPTION(command->options, SENDIF_STDERR_NONE)) { if(command->stderrbuffer.used == 0) { sendif = 1; } }
 
 	// if we don't have to send anything, we're going into silent mode
 	if(sendif == 0) {
@@ -379,14 +379,16 @@ int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 	int rv;
 	command_t *command;
 	
-	if(rawpipecommand == NULL)
+	if(rawpipecommand == NULL) {
 		return -1;
+	}
 
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "sending to: %s", rawpipecommand);
 
 	command = cronsh_command_init(rawpipecommand, buffer);
-	if(command == NULL)
+	if(command == NULL) {
 		return -1;
+	}
 
 	cronsh_command_spawn(command);
 	
@@ -459,11 +461,13 @@ void cronsh_command_spawn(command_t *command) {
 	fd_set writefds;
 
 	size_t stdinbytes = 0;
-	if(command->stdinbuffer != NULL)
+	if(command->stdinbuffer != NULL) {
 		stdinbytes = command->stdinbuffer->used;
+	}
 	
-	if(stdinbytes == 0)
+	if(stdinbytes == 0) {
 		close(childstdinfd[1]);
+	}
 
 	int rv, bytes, nfds;
 	char buffer[64 * 1024];
@@ -489,12 +493,14 @@ void cronsh_command_spawn(command_t *command) {
 		timeout.tv_usec = 0;
 
 		rv = select(nfds + 1, &readfds, &writefds, NULL, &timeout);
-		if(rv == 0)
+		if(rv == 0) {
 			continue;
+		}
 
 		if(rv == -1) {
-			if(errno == EAGAIN)
+			if(errno == EAGAIN) {
 				continue;
+			}
 
 			cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "select failed: %s", strerror(errno));
 
@@ -504,28 +510,34 @@ void cronsh_command_spawn(command_t *command) {
 		if(stdinbytes != 0) {
 			if(FD_ISSET(childstdinfd[1], &writefds)) {
 				bytes = write(childstdinfd[1], &command->stdinbuffer->data[command->stdinbuffer->used - stdinbytes], stdinbytes);
-				if(bytes > 0)
+				if(bytes > 0) {
 					stdinbytes -= bytes;
+				}
 
-				if(stdinbytes == 0)
+				if(stdinbytes == 0) {
 					close(childstdinfd[1]);
+				}
 			}
 		}
 
 		if(FD_ISSET(childstdoutfd[0], &readfds)) {
 			bytes = read(childstdoutfd[0], buffer, sizeof(buffer));
-			if(bytes > 0)
+			if(bytes > 0) {
 				bufferAppendBytes(&command->stdoutbuffer, buffer, bytes);
-			else
+			}
+			else {
 				break;
+			}
 		}
 
 		if(FD_ISSET(childstderrfd[0], &readfds)) {
 			bytes = read(childstderrfd[0], buffer, sizeof(buffer));
-			if(bytes > 0)
+			if(bytes > 0) {
 				bufferAppendBytes(&command->stderrbuffer, buffer, bytes);
-			else
+			}
+			else {
 				break;
+			}
 		}
 	}
 
@@ -538,13 +550,16 @@ void cronsh_command_spawn(command_t *command) {
 
 	wait4(pid, &status, 0, &command->rusage);
 
-	if(WIFEXITED(status))
+	if(WIFEXITED(status)) {
 		command->status = WEXITSTATUS(status);
-	else
+	}
+	else {
 		command->status = -1;
+	}
 
-	if(WIFSIGNALED(status))
+	if(WIFSIGNALED(status)) {
 		command->signal = WTERMSIG(status);
+	}
 
 	return;
 }
@@ -561,17 +576,22 @@ void cronsh_init(void) {
 
 	env = getenv("CRONSH_LOGLEVEL");
 	if(env != NULL) {
-		if(!strcmp("debug", env))
+		if(!strcmp("debug", env)) {
 			config.loglevel = CRONSH_LOGLEVEL_DEBUG;
-		else if(!strcmp("notice", env))
+		}
+		else if(!strcmp("notice", env)) {
 			config.loglevel = CRONSH_LOGLEVEL_NOTICE;
-		else if(!strcmp("critical", env))
+		}
+		else if(!strcmp("critical", env)) {
 			config.loglevel = CRONSH_LOGLEVEL_CRITICAL;
-		else
+		}
+		else {
 			config.loglevel = CRONSH_LOGLEVEL_DEFAULT;
+		}
 	}
-	else
+	else {
 		config.loglevel = CRONSH_LOGLEVEL_DEFAULT;
+	}
 
 	env = getenv("CRONSH_LOG");
 	if(env != NULL) {
@@ -606,8 +626,9 @@ void cronsh_init(void) {
 	if(env != NULL) {
 		config.options = cronsh_options(CRONSH_OPTION_NONE, env);
 	}
-	else
+	else {
 		config.options = CRONSH_OPTION_NONE;
+	}
 	
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "OPTIONS: %d", config.options);
 
@@ -724,8 +745,9 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	inquotes = 0;
 	j = 0;
 	for(i = 0; i < len; i++) {
-		if(rawcommand[i] == '\0')
+		if(rawcommand[i] == '\0') {
 			break;
+		}
 
 		current = rawcommand[i];
 
@@ -734,12 +756,14 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 		// :space: is separator of commands, ignored if in :quotes:
 
 		// treat \t, \n, and \r the same as :space:
-		if(current == '\t' || current == '\n' || current == '\r')
+		if(current == '\t' || current == '\n' || current == '\r') {
 			current = ' ';
+		}
 
 		// treat " and ' as :quotes:
-		if(current == '"' || current == '\'')
+		if(current == '"' || current == '\'') {
 			current = '"';
+		}
 
 		if(inquotes == 0) {
 			if(last == '\\') {
@@ -763,8 +787,9 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 				}
 
 				if(current == ' ') {
-					if(last == ' ')
+					if(last == ' ') {
 						continue;
+					}
 
 					last = current;
 					tcommand[j++] = '\0';
@@ -833,8 +858,9 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	last = '\0';
 
 	for(i = 0; i < len; i++) {
-		if(last == '\0' && tcommand[i] != '\0')
+		if(last == '\0' && tcommand[i] != '\0') {
 			command->argv[nargs++] = strdup(&tcommand[i]);
+		}
 
 		last = tcommand[i];
 	}
@@ -853,11 +879,13 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	inoptions = 0;
 	for(i = 0; command->argv[i] != NULL; i++) {
 		if(inoptions == 0) {
-			if(command->argv[i][0] != '#')
+			if(command->argv[i][0] != '#') {
 				continue;
+			}
 
-			if(strlen(command->argv[i]) > 1)
+			if(strlen(command->argv[i]) > 1) {
 				command->tag = strdup(&command->argv[i][1]);
+			}
 
 			command->argv[i] = NULL;
 			inoptions = 1;
@@ -884,15 +912,18 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 }
 
 void cronsh_command_free(command_t *command) {
-	if(command == NULL)
+	if(command == NULL) {
 		return;
+	}
 	
 	bufferFree(&command->stdoutbuffer);
 	bufferFree(&command->stderrbuffer);
 
 	int i = 0;
-	for(i = 0; command->argv[i] != NULL; i++)
+	for(i = 0; command->argv[i] != NULL; i++) {
 		free(command->argv[i]);
+	}
+
 	free(command->argv);
 	
 	return;
@@ -903,12 +934,14 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 	unsigned int outoptions = inoptions, toption;
 	char *ref, *string, *token;
 
-	if(options == NULL)
+	if(options == NULL) {
 		return outoptions;
+	}
 	
 	ref = string = strdup(options);
-	if(ref == NULL)
+	if(ref == NULL) {
 		return outoptions;
+	}
 	
 	/*
 		silent, !silent
@@ -953,34 +986,34 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 			continue;
 		}
 		
-		if(!strcmp(token, "silent")) toption = CRONSH_OPTION_SILENT;
-		else if(!strcmp(token, "crondefault")) toption = CRONSH_OPTION_CRONDEFAULT;
+		if(!strcmp(token, "silent")) { toption = CRONSH_OPTION_SILENT; }
+		else if(!strcmp(token, "crondefault")) { toption = CRONSH_OPTION_CRONDEFAULT; }
 
-		else if(!strcmp(token, "capture-stdout")) toption = CRONSH_OPTION_CAPTURE_STDOUT;
-		else if(!strcmp(token, "capture-stderr")) toption = CRONSH_OPTION_CAPTURE_STDERR;
-		else if(!strcmp(token, "capture-all")) toption = CRONSH_OPTION_CAPTURE_ALL;
+		else if(!strcmp(token, "capture-stdout")) { toption = CRONSH_OPTION_CAPTURE_STDOUT; }
+		else if(!strcmp(token, "capture-stderr")) { toption = CRONSH_OPTION_CAPTURE_STDERR; }
+		else if(!strcmp(token, "capture-all")) { toption = CRONSH_OPTION_CAPTURE_ALL; }
 
-		else if(!strcmp(token, "sendto-stdout")) toption = CRONSH_OPTION_SENDTO_STDOUT;
-		else if(!strcmp(token, "sendto-file")) toption = CRONSH_OPTION_SENDTO_FILE;
-		else if(!strcmp(token, "sendto-pipe")) toption = CRONSH_OPTION_SENDTO_PIPE;
-		else if(!strcmp(token, "sendto-all")) toption = CRONSH_OPTION_SENDTO_ALL;
-		else if(!strcmp(token, "sendto-fallback")) toption = CRONSH_OPTION_SENDTO_FALLBACK;
+		else if(!strcmp(token, "sendto-stdout")) { toption = CRONSH_OPTION_SENDTO_STDOUT; }
+		else if(!strcmp(token, "sendto-file")) { toption = CRONSH_OPTION_SENDTO_FILE; }
+		else if(!strcmp(token, "sendto-pipe")) { toption = CRONSH_OPTION_SENDTO_PIPE; }
+		else if(!strcmp(token, "sendto-all")) { toption = CRONSH_OPTION_SENDTO_ALL; }
+		else if(!strcmp(token, "sendto-fallback")) { toption = CRONSH_OPTION_SENDTO_FALLBACK; }
 
-		else if(!strcmp(token, "sendif-status")) toption = CRONSH_OPTION_SENDIF_STATUS;
-		else if(!strcmp(token, "sendif-status-ok")) toption = CRONSH_OPTION_SENDIF_STATUS_OK;
-		else if(!strcmp(token, "sendif-status-any")) toption = CRONSH_OPTION_SENDIF_STATUS_ANY;
+		else if(!strcmp(token, "sendif-status")) { toption = CRONSH_OPTION_SENDIF_STATUS; }
+		else if(!strcmp(token, "sendif-status-ok")) { toption = CRONSH_OPTION_SENDIF_STATUS_OK; }
+		else if(!strcmp(token, "sendif-status-any")) { toption = CRONSH_OPTION_SENDIF_STATUS_ANY; }
 
-		else if(!strcmp(token, "sendif-signal")) toption = CRONSH_OPTION_SENDIF_SIGNAL;
-		else if(!strcmp(token, "sendif-signal-ok")) toption = CRONSH_OPTION_SENDIF_SIGNAL_OK;
-		else if(!strcmp(token, "sendif-signal-any")) toption = CRONSH_OPTION_SENDIF_SIGNAL_ANY;
+		else if(!strcmp(token, "sendif-signal")) { toption = CRONSH_OPTION_SENDIF_SIGNAL; }
+		else if(!strcmp(token, "sendif-signal-ok")) { toption = CRONSH_OPTION_SENDIF_SIGNAL_OK; }
+		else if(!strcmp(token, "sendif-signal-any")) { toption = CRONSH_OPTION_SENDIF_SIGNAL_ANY; }
 
-		else if(!strcmp(token, "sendif-stdout")) toption = CRONSH_OPTION_SENDIF_STDOUT;
-		else if(!strcmp(token, "sendif-stdout-none")) toption = CRONSH_OPTION_SENDIF_STDOUT_NONE;
-		else if(!strcmp(token, "sendif-stdout-any")) toption = CRONSH_OPTION_SENDIF_STDOUT_ANY;
+		else if(!strcmp(token, "sendif-stdout")) { toption = CRONSH_OPTION_SENDIF_STDOUT; }
+		else if(!strcmp(token, "sendif-stdout-none")) { toption = CRONSH_OPTION_SENDIF_STDOUT_NONE; }
+		else if(!strcmp(token, "sendif-stdout-any")) { toption = CRONSH_OPTION_SENDIF_STDOUT_ANY; }
 
-		else if(!strcmp(token, "sendif-stderr")) toption = CRONSH_OPTION_SENDIF_STDERR;
-		else if(!strcmp(token, "sendif-stderr-none")) toption = CRONSH_OPTION_SENDIF_STDERR_NONE;
-		else if(!strcmp(token, "sendif-stderr-any")) toption = CRONSH_OPTION_SENDIF_STDERR_ANY;
+		else if(!strcmp(token, "sendif-stderr")) { toption = CRONSH_OPTION_SENDIF_STDERR; }
+		else if(!strcmp(token, "sendif-stderr-none")) { toption = CRONSH_OPTION_SENDIF_STDERR_NONE; }
+		else if(!strcmp(token, "sendif-stderr-any")) { toption = CRONSH_OPTION_SENDIF_STDERR_ANY; }
 
 		else {
 			toption = CRONSH_OPTION_NONE;
@@ -1004,8 +1037,9 @@ void cronsh_log(int loglevel, const char *format, ...) {
 	char message[1024 + 1], *l;
 	va_list ap;
 
-	if(loglevel < config.loglevel)
+	if(loglevel < config.loglevel) {
 		return;
+	}
 
 	if(config.logfp == NULL) {
 		config.logfp = stderr;
@@ -1155,8 +1189,9 @@ void cronsh_help(void) {
 /* buffer facility */
 
 int bufferInit(buffer_t *buffer, size_t nbytes) {
-	if(buffer == NULL)
+	if(buffer == NULL) {
 		return 1;
+	}
 
 	buffer->data = NULL;
 	buffer->size = 0;
@@ -1164,8 +1199,9 @@ int bufferInit(buffer_t *buffer, size_t nbytes) {
 	buffer->step = nbytes;
 
 	buffer->data = (char *)calloc(buffer->step + 1, sizeof(char));
-	if(buffer->data == NULL)
+	if(buffer->data == NULL) {
 		return 1;
+	}
 
 	buffer->size = buffer->step;
 
@@ -1173,8 +1209,9 @@ int bufferInit(buffer_t *buffer, size_t nbytes) {
 }
 
 int bufferFree(buffer_t *buffer) {
-	if(buffer == NULL)
+	if(buffer == NULL) {
 		return 1;
+	}
 
 	if(buffer->data != NULL) {
 		free(buffer->data);
@@ -1187,8 +1224,9 @@ int bufferFree(buffer_t *buffer) {
 }
 
 int bufferReset(buffer_t *buffer) {
-	if(buffer == NULL)
+	if(buffer == NULL) {
 		return 1;
+	}
 
 	buffer->used = 0;
 
@@ -1199,14 +1237,17 @@ int bufferAppendBytes(buffer_t *dst, const char *bytes, size_t nbytes) {
 	size_t size;
 	char *data;
 
-	if(dst == NULL)
+	if(dst == NULL) {
 		return 1;
+	}
 
-	if(bytes == NULL)
+	if(bytes == NULL) {
 		return 0;
+	}
 
-	if(nbytes == 0)
+	if(nbytes == 0) {
 		return 0;
+	}
 
 	// Check if we have to increase the buffer size
 	if((dst->used + nbytes) > dst->size) {
@@ -1214,8 +1255,9 @@ int bufferAppendBytes(buffer_t *dst, const char *bytes, size_t nbytes) {
 		size = ((dst->used + nbytes) / dst->step + 1) * dst->step;
 
 		data = (char *)realloc(dst->data, size + 1);
-		if(data == NULL)
+		if(data == NULL) {
 			return 1;
+		}
 
 		dst->data = data;
 		dst->size = size;
@@ -1236,15 +1278,17 @@ int bufferAppendString(buffer_t *dst, const char *format, ...) {
 	char *string;
 	va_list ap;
 
-	if(format == NULL)
+	if(format == NULL) {
 		return 0;
+	}
 
 	va_start(ap, format);
 	vasprintf(&string, format, ap);
 	va_end(ap);
 
-	if(string == NULL)
+	if(string == NULL) {
 		return 0;
+	}
 
 	rv = bufferAppendBytes(dst, string, strlen(string));
 
@@ -1254,8 +1298,9 @@ int bufferAppendString(buffer_t *dst, const char *format, ...) {
 }
 
 int bufferAppendBuffer(buffer_t *dst, buffer_t *src) {
-	if(src == NULL)
+	if(src == NULL) {
 		return 0;
+	}
 
 	return bufferAppendBytes(dst, src->data, src->used);
 }
@@ -1274,33 +1319,40 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 	char *string, *t, *p;
 	va_list ap;
 
-	if(key == NULL || format == NULL)
+	if(key == NULL || format == NULL) {
 		return 0;
+	}
 
 	va_start(ap, format);
 	vasprintf(&string, format, ap);
 	va_end(ap);
 
-	if(string == NULL)
+	if(string == NULL) {
 		return 0;
+	}
 
-	for(n = 0; n < level; n++)
+	for(n = 0; n < level; n++) {
 		rv += bufferAppendBytes(dst, "    ", 4);
+	}
 	rv += bufferAppendBytes(dst, key, strlen(key));
 
-	if(strcmp(key, "-"))
+	if(strcmp(key, "-")) {
 		rv += bufferAppendBytes(dst, ": ", 2);
-	else
+	}
+	else {
 		rv += bufferAppendBytes(dst, " ", 1);
+	}
 
 	t = string;
 	n = 0;
 	while(*t != '\0') {
-		if(*t == '\r')
+		if(*t == '\r') {
 			*t = '\n';
+		}
 
-		if(*t == '\n')
+		if(*t == '\n') {
 			n++;
+		}
 
 		t++;
 	}
@@ -1308,8 +1360,9 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 	if(n != 0) {
 		rv += bufferAppendBytes(dst, ">\n", 2);
 
-		for(n = 0; n < (level + 1); n++)
+		for(n = 0; n < (level + 1); n++) {
 			rv += bufferAppendBytes(dst, "    ", 4);
+		}
 
 		size_t len = 0;
 		t = p = string;
@@ -1317,8 +1370,9 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 			len++;
 			if(*t == '\n') {
 				rv += bufferAppendBytes(dst, p, len);
-				for(n = 0; n < (level + 1); n++)
+				for(n = 0; n < (level + 1); n++) {
 					rv += bufferAppendBytes(dst, "    ", 4);
+				}
 
 				len = 0;
 				p = t + 1;
@@ -1343,11 +1397,13 @@ int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, cha
 	int rv = 0;
 	unsigned int l;
 
-	if(key == NULL)
+	if(key == NULL) {
 		return 0;
+	}
 
-	for(l = 0; l < level; l++)
+	for(l = 0; l < level; l++) {
 		rv += bufferAppendBytes(dst, "    ", 4);
+	}
 	rv += bufferAppendBytes(dst, key, strlen(key));
 
 	rv += bufferAppendBytes(dst, ":\n", 2);
