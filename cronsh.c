@@ -54,6 +54,7 @@
 #define CRONSH_OPTION_SENDIF_STDERR		(1 << 13)	// stderr != ''
 #define CRONSH_OPTION_SENDIF_STDERR_NONE	(1 << 14)	// stderr == ''
 #define CRONSH_OPTION_SENDIF_STDERR_ANY		(CRONSH_OPTION_SENDIF_STDERR | CRONSH_OPTION_SENDIF_STDERR_NONE)
+#define CRONSH_OPTION_SENDIF_ANY		(CRONSH_OPTION_SENDIF_STATUS_ANY | CRONSH_OPTION_SENDIF_SIGNAL_ANY | CRONSH_OPTION_SENDIF_STDOUT_ANY | CRONSH_OPTION_SENDIF_STDERR_ANY)
 // cron default options
 #define CRONSH_OPTION_CRONDEFAULT		(CRONSH_OPTION_CAPTURE_ALL | CRONSH_OPTION_SENDTO_STDOUT | CRONSH_OPTION_SENDIF_STATUS_ANY | CRONSH_OPTION_SENDIF_SIGNAL_ANY | CRONSH_OPTION_SENDIF_STDOUT | CRONSH_OPTION_SENDIF_STDERR)
 
@@ -232,6 +233,7 @@ int main(int argc, char **argv) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is not empty = %s", CRONSH_OPTION(command->options, SENDIF_STDERR) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is empty     = %s", CRONSH_OPTION(command->options, SENDIF_STDERR_NONE) ? "yes" : "no");
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send if stderr is anything  = %s", CRONSH_OPTION(command->options, SENDIF_STDERR_ANY) ? "yes" : "no");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "   send in any case            = %s", CRONSH_OPTION(command->options, SENDIF_ANY) ? "yes" : "no");
 
 
 	// execute the actual command
@@ -970,6 +972,7 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		sendif-stderr, !sendif-stderr
 		sendif-stderr-none, !sendif-stderr-none
 		sendif-stderr-any, !sendif-stderr-any
+		sendif-any, !sendif-any
 	*/
 
 	// idea for alternative syntax:
@@ -1014,6 +1017,8 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		else if(!strcmp(token, "sendif-stderr")) { toption = CRONSH_OPTION_SENDIF_STDERR; }
 		else if(!strcmp(token, "sendif-stderr-none")) { toption = CRONSH_OPTION_SENDIF_STDERR_NONE; }
 		else if(!strcmp(token, "sendif-stderr-any")) { toption = CRONSH_OPTION_SENDIF_STDERR_ANY; }
+		
+		else if(!strcmp(token, "sendif-any")) { toption = CRONSH_OPTION_SENDIF_ANY; }
 
 		else {
 			toption = CRONSH_OPTION_NONE;
@@ -1145,7 +1150,8 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t    Write the YAML document to STDIN of this command if the option 'sendto-pipe' is given.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
-	fprintf(stderr, "\t    Set the different options to define the default behaviour of cronsh. Valid options are:\n");
+	fprintf(stderr, "\t    Set the different options to define the default behaviour of cronsh. The order of the\n");
+	fprintf(stderr, "\t    options crucial. Valid options are:\n");
 	fprintf(stderr, "\t         silent              - nothing will be send neither to cron, file, nor pipe.\n");
 	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
 	fprintf(stderr, "\t         capture-stdout      - capture stdout.\n");
@@ -1168,6 +1174,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         sendif-stderr       - send the YAML only if there was output to stderr.\n");
 	fprintf(stderr, "\t         sendif-stderr-none  - send the YAML only if there was no output to stderr.\n");
 	fprintf(stderr, "\t         sendif-stderr-any   - send the YAML on any stderr value.\n");
+	fprintf(stderr, "\t         sendif-any          - send the YAML in any case.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_HOSTNAME\n");
 	fprintf(stderr, "\t    Override the hostname as given by gethostname().\n");
