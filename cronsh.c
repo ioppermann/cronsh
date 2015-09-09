@@ -1363,6 +1363,26 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 
 		t++;
 	}
+	
+	if(n == 0) {                                                                    
+		switch(string[0]) {                                                     
+			case '-':                                                       
+			case ':':                                                       
+			case '[':                                                       
+			case '{':                                                       
+			case '&':                                                       
+			case '*':                                                       
+			case '?':                                                       
+			case '|':                                                       
+			case '>':                                                       
+			case '"':                                                       
+			case '\'':
+			case '!':
+				n++;
+			default:
+				break;
+		}
+	}
 
 	if(n != 0) {
 		rv += bufferAppendBytes(dst, "|\n", 2);
