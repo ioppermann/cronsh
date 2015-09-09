@@ -1365,7 +1365,7 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 	}
 
 	if(n != 0) {
-		rv += bufferAppendBytes(dst, ">\n", 2);
+		rv += bufferAppendBytes(dst, "|\n", 2);
 
 		for(n = 0; n < (level + 1); n++) {
 			rv += bufferAppendBytes(dst, "    ", 4);
