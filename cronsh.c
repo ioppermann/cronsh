@@ -134,13 +134,14 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, char **list);
 
 
+// http://stackoverflow.com/a/9781275, not very accurate because it's not monotic
 #ifdef __MACH__
 #include <sys/time.h>
 #define CLOCK_MONOTONIC 0
 //clock_gettime is not implemented on OSX
 int clock_gettime(int clk_id, struct timespec* t) {
     struct timeval now;
-    int rv = gettimeofday(&now, NULL);
+    int rv = gettimeofday(&now, NULL);	// better with mach_absolute_time() in <mach/mach_time.h>
     if (rv) return rv;
     t->tv_sec  = now.tv_sec;
     t->tv_nsec = now.tv_usec * 1000;
