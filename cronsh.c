@@ -175,10 +175,28 @@ int main(int argc, char **argv) {
 
 	opterr = 0;
 
-	while((c = getopt(argc, argv, ":c: h")) != -1) {
+	while((c = getopt(argc, argv, ":c: :V: :l: :f: :p: :o: :H: h")) != -1) {
 		switch(c) {
 			case 'c':
 				rawcommand = optarg;
+				break;
+			case 'V':
+				setenv("CRONSH_LOGLEVEL", optarg, 1);
+				break;
+			case 'l':
+				setenv("CRONSH_LOGL", optarg, 1);
+				break;
+			case 'f':
+				setenv("CRONSH_FILE", optarg, 1);
+				break;
+			case 'p':
+				setenv("CRONSH_PIPE", optarg, 1);
+				break;
+			case 'o':
+				setenv("CRONSH_OPTIONS", optarg, 1);
+				break;
+			case 'H':
+				setenv("CRONSH_HOSTNAME", optarg, 1);
 				break;
 			case 'h':
 				cronsh_help();
@@ -1127,6 +1145,21 @@ void cronsh_help(void) {
 	fprintf(stderr, "OPTIONS\n");
 	fprintf(stderr, "\t-c command\n");
 	fprintf(stderr, "\t    The command to execute.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-V verbosity\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_LOGLEVEL.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-l file\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_LOG.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-p command\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_PIPE.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-o options\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_OPTIONS.\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-H hostname\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_HOSTNAME.\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\t-h\n");
 	fprintf(stderr, "\t    Display the help screen.\n");
