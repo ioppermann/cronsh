@@ -30,6 +30,10 @@
 #define CRONSH_PARSE_MEMORY		1
 #define CRONSH_PARSE_QUOTES		2
 
+#define CRONSH_YAML_NONE		0
+#define CRONSH_YAML_NUMBER		1
+#define CRONSH_YAML_STRING		2
+
 #define CRONSH_OPTION_NONE			0
 #define CRONSH_OPTION_SILENT			(1 <<  0)
 // capture options
@@ -131,8 +135,8 @@ int bufferAppendBytes(buffer_t *dst, const char *bytes, size_t nbytes);
 
 int bufferStartYAML(buffer_t *dst);
 int bufferEndYAML(buffer_t *dst);
-int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, ...);
-int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, char **list);
+int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, int type, ...);
+int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, int type, char **list);
 
 
 // http://stackoverflow.com/a/9781275, not very accurate because it's not monotic
@@ -277,50 +281,50 @@ int main(int argc, char **argv) {
 	bufferInit(&outbuffer, CRONSH_BUFFER_STEPSIZE);
 	
 	bufferStartYAML(&outbuffer);
-	bufferAppendYAML(&outbuffer, 0, "hostname", "%s", config.thishostname);
-	bufferAppendYAML(&outbuffer, 0, "user", "%s", config.thisuser);
-	bufferAppendYAML(&outbuffer, 0, "rawcommand", "%s", rawcommand);
+	bufferAppendYAML(&outbuffer, 0, "hostname", "%s", CRONSH_YAML_STRING, config.thishostname);
+	bufferAppendYAML(&outbuffer, 0, "user", "%s", CRONSH_YAML_STRING, config.thisuser);
+	bufferAppendYAML(&outbuffer, 0, "rawcommand", "%s", CRONSH_YAML_STRING, rawcommand);
 
-	bufferAppendYAMLList(&outbuffer, 0, "command", command->argv);
+	bufferAppendYAMLList(&outbuffer, 0, "command", CRONSH_YAML_STRING, command->argv);
 
-	bufferAppendYAML(&outbuffer, 0, "tag", "%s", (command->tag != NULL) ? command->tag : "[not given]");
-	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", utcstarttime);
-	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", (unsigned long)(difftimespec(&starttime, &stoptime) * 1000));
-	bufferAppendYAML(&outbuffer, 0, "pid", "%u", command->pid);
-	bufferAppendYAML(&outbuffer, 0, "ppid", "%u", command->ppid);
-	bufferAppendYAML(&outbuffer, 0, "status", "%d", command->status);
-	bufferAppendYAML(&outbuffer, 0, "signal", "%d", command->signal);
+	bufferAppendYAML(&outbuffer, 0, "tag", "%s", CRONSH_YAML_STRING, (command->tag != NULL) ? command->tag : "[not given]");
+	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", CRONSH_YAML_NUMBER, utcstarttime);
+	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", CRONSH_YAML_NUMBER, (unsigned long)(difftimespec(&starttime, &stoptime) * 1000));
+	bufferAppendYAML(&outbuffer, 0, "pid", "%u", CRONSH_YAML_NUMBER, command->pid);
+	bufferAppendYAML(&outbuffer, 0, "ppid", "%u", CRONSH_YAML_NUMBER, command->ppid);
+	bufferAppendYAML(&outbuffer, 0, "status", "%d", CRONSH_YAML_NUMBER, command->status);
+	bufferAppendYAML(&outbuffer, 0, "signal", "%d", CRONSH_YAML_NUMBER, command->signal);
 
 	if(!CRONSH_OPTION(command->options, CAPTURE_STDOUT)) {
 		bufferReset(&command->stdoutbuffer);
 	}
 	
-	bufferAppendYAML(&outbuffer, 0, "stdout", "%s", command->stdoutbuffer.data);
+	bufferAppendYAML(&outbuffer, 0, "stdout", "%s", CRONSH_YAML_STRING, command->stdoutbuffer.data);
 
 	if(!CRONSH_OPTION(command->options, CAPTURE_STDERR)) {
 		bufferReset(&command->stderrbuffer);
 	}
 	
-	bufferAppendYAML(&outbuffer, 0, "stderr", "%s", command->stderrbuffer.data);
+	bufferAppendYAML(&outbuffer, 0, "stderr", "%s", CRONSH_YAML_STRING, command->stderrbuffer.data);
 
-	bufferAppendYAML(&outbuffer, 0, "rusage", "");
+	bufferAppendYAML(&outbuffer, 0, "rusage", "", CRONSH_YAML_NONE);
 
-	bufferAppendYAML(&outbuffer, 1, "utime", "%ld", command->rusage.ru_utime.tv_sec * 1000 + command->rusage.ru_utime.tv_usec / 1000);	// user time used
-	bufferAppendYAML(&outbuffer, 1, "stime", "%ld", command->rusage.ru_stime.tv_sec * 1000 + command->rusage.ru_stime.tv_usec / 1000);	// system time used
-	bufferAppendYAML(&outbuffer, 1, "maxrss", "%ld", command->rusage.ru_maxrss);		// max resident set size
-	bufferAppendYAML(&outbuffer, 1, "ixrss", "%ld", command->rusage.ru_ixrss);		// integral shared text memory size
-	bufferAppendYAML(&outbuffer, 1, "idrss", "%ld", command->rusage.ru_idrss);		// integral unshared data size
-	bufferAppendYAML(&outbuffer, 1, "isrss", "%ld", command->rusage.ru_isrss);		// integral unshared stack size
-	bufferAppendYAML(&outbuffer, 1, "minflt", "%ld", command->rusage.ru_minflt);		// page reclaims
-	bufferAppendYAML(&outbuffer, 1, "majflt", "%ld", command->rusage.ru_majflt);		// page faults
-	bufferAppendYAML(&outbuffer, 1, "nswap", "%ld", command->rusage.ru_nswap);		// swaps
-	bufferAppendYAML(&outbuffer, 1, "inblock", "%ld", command->rusage.ru_inblock);		// block input operations
-	bufferAppendYAML(&outbuffer, 1, "oublock", "%ld", command->rusage.ru_oublock);		// block output operations
-	bufferAppendYAML(&outbuffer, 1, "msgsnd", "%ld", command->rusage.ru_msgsnd);		// messages sent
-	bufferAppendYAML(&outbuffer, 1, "msgrcv", "%ld", command->rusage.ru_msgrcv);		// messages received
-	bufferAppendYAML(&outbuffer, 1, "nsignals", "%ld", command->rusage.ru_nsignals);	// signals received
-	bufferAppendYAML(&outbuffer, 1, "nvcsw", "%ld", command->rusage.ru_nvcsw);		// voluntary context switches
-	bufferAppendYAML(&outbuffer, 1, "nivcsw", "%ld", command->rusage.ru_nivcsw);		// involuntary context switches
+	bufferAppendYAML(&outbuffer, 1, "utime", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_utime.tv_sec * 1000 + command->rusage.ru_utime.tv_usec / 1000);	// user time used
+	bufferAppendYAML(&outbuffer, 1, "stime", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_stime.tv_sec * 1000 + command->rusage.ru_stime.tv_usec / 1000);	// system time used
+	bufferAppendYAML(&outbuffer, 1, "maxrss", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_maxrss);		// max resident set size
+	bufferAppendYAML(&outbuffer, 1, "ixrss", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_ixrss);		// integral shared text memory size
+	bufferAppendYAML(&outbuffer, 1, "idrss", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_idrss);		// integral unshared data size
+	bufferAppendYAML(&outbuffer, 1, "isrss", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_isrss);		// integral unshared stack size
+	bufferAppendYAML(&outbuffer, 1, "minflt", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_minflt);		// page reclaims
+	bufferAppendYAML(&outbuffer, 1, "majflt", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_majflt);		// page faults
+	bufferAppendYAML(&outbuffer, 1, "nswap", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_nswap);		// swaps
+	bufferAppendYAML(&outbuffer, 1, "inblock", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_inblock);		// block input operations
+	bufferAppendYAML(&outbuffer, 1, "oublock", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_oublock);		// block output operations
+	bufferAppendYAML(&outbuffer, 1, "msgsnd", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_msgsnd);		// messages sent
+	bufferAppendYAML(&outbuffer, 1, "msgrcv", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_msgrcv);		// messages received
+	bufferAppendYAML(&outbuffer, 1, "nsignals", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_nsignals);	// signals received
+	bufferAppendYAML(&outbuffer, 1, "nvcsw", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_nvcsw);		// voluntary context switches
+	bufferAppendYAML(&outbuffer, 1, "nivcsw", "%ld", CRONSH_YAML_NUMBER, command->rusage.ru_nivcsw);		// involuntary context switches
 
 	bufferEndYAML(&outbuffer);
 
@@ -1218,7 +1222,7 @@ int bufferEndYAML(buffer_t *dst) {
 	return bufferAppendString(dst, "...\n");
 }
 
-int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, ...) {
+int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const char *format, int type, ...) {
 	int rv = 0;
 	unsigned int n;
 	char *string, *t, *p;
@@ -1228,7 +1232,7 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 		return 0;
 	}
 
-	va_start(ap, format);
+	va_start(ap, type);
 	vasprintf(&string, format, ap);
 	va_end(ap);
 
@@ -1237,7 +1241,7 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 	}
 
 	for(n = 0; n < level; n++) {
-		rv += bufferAppendBytes(dst, "    ", 4);
+		rv += bufferAppendBytes(dst, "  ", 2);
 	}
 	rv += bufferAppendBytes(dst, key, strlen(key));
 
@@ -1248,67 +1252,77 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 		rv += bufferAppendBytes(dst, " ", 1);
 	}
 
-	t = string;
-	n = 0;
-	while(*t != '\0') {
-		if(*t == '\r') {
-			*t = '\n';
-		}
-
-		if(*t == '\n') {
-			n++;
-		}
-
-		t++;
+	if(type == CRONSH_YAML_NUMBER) {
+		rv += bufferAppendBytes(dst, string, strlen(string));
 	}
-	
-	if(n == 0) {                                                                    
-		switch(string[0]) {                                                     
-			case '-':                                                       
-			case ':':                                                       
-			case '[':                                                       
-			case '{':                                                       
-			case '&':                                                       
-			case '*':                                                       
-			case '?':                                                       
-			case '|':                                                       
-			case '>':                                                       
-			case '"':                                                       
-			case '\'':
-			case '!':
-				n++;
-			default:
-				break;
-		}
-	}
+	else if(type == CRONSH_YAML_STRING && strlen(string) != 0) {
+		t = string;
+		n = 0;
+		int literal = 0;
 
-	if(n != 0) {
-		rv += bufferAppendBytes(dst, "|\n", 2);
-
-		for(n = 0; n < (level + 1); n++) {
-			rv += bufferAppendBytes(dst, "    ", 4);
-		}
-
-		size_t len = 0;
-		t = p = string;
 		while(*t != '\0') {
-			len++;
-			if(*t == '\n') {
-				rv += bufferAppendBytes(dst, p, len);
-				for(n = 0; n < (level + 1); n++) {
-					rv += bufferAppendBytes(dst, "    ", 4);
-				}
+			if(*t == '\r') {
+				*t = '\n';
+			}
 
-				len = 0;
-				p = t + 1;
-                        }
+			if(iscntrl(*t)) {
+				literal = 1;
+				break;
+			}
 
 			t++;
 		}
-		rv += bufferAppendBytes(dst, p, len);
-	}
-	else {
-		rv += bufferAppendBytes(dst, string, strlen(string));
+
+		if(literal != 0) {
+			rv += bufferAppendBytes(dst, "|-\n", 3);
+
+			for(n = 0; n < (level + 1); n++) {
+				rv += bufferAppendBytes(dst, "  ", 2);
+			}
+
+			size_t len = 0;
+			t = p = string;
+			while(*t != '\0') {
+				len++;
+				if(*t == '\n') {
+					rv += bufferAppendBytes(dst, p, len);
+					for(n = 0; n < (level + 1); n++) {
+						rv += bufferAppendBytes(dst, "  ", 2);
+					}
+
+					len = 0;
+					p = t + 1;
+	                        }
+	                        else if(iscntrl(*t)) {
+	                        	rv += bufferAppendBytes(dst, p, len - 1);
+	                        	rv += bufferAppendString(dst, "\\x%x", *t);
+	                        	len = 0;
+					p = t + 1;
+	                        }
+
+				t++;
+			}
+			rv += bufferAppendBytes(dst, p, len);
+		}
+		else {
+			rv += bufferAppendBytes(dst, "'", 1);
+			size_t len = 0;
+			t = p = string;
+			while(*t != '\0') {
+				len++;
+				if(*t == '\'') {
+					rv += bufferAppendBytes(dst, p, len);
+					rv += bufferAppendBytes(dst, "'", 1);
+
+					len = 0;
+					p = t + 1;
+	                        }
+
+				t++;
+			}
+			rv += bufferAppendBytes(dst, p, len);
+			rv += bufferAppendBytes(dst, "'", 1);
+		}
 	}
 
 	rv += bufferAppendBytes(dst, "\n", 1);
@@ -1318,7 +1332,7 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 	return rv;
 }
 
-int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, char **list) {
+int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, int type, char **list) {
 	int rv = 0;
 	unsigned int l;
 
@@ -1327,14 +1341,14 @@ int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, cha
 	}
 
 	for(l = 0; l < level; l++) {
-		rv += bufferAppendBytes(dst, "    ", 4);
+		rv += bufferAppendBytes(dst, "  ", 2);
 	}
 	rv += bufferAppendBytes(dst, key, strlen(key));
 
 	rv += bufferAppendBytes(dst, ":\n", 2);
 
 	for(l = 0; list[l] != NULL; l++) {
-		rv += bufferAppendYAML(dst, level + 1, "-", "%s", list[l]);
+		rv += bufferAppendYAML(dst, level + 1, "-", "%s", type, list[l]);
 	}
 
 	return rv;
