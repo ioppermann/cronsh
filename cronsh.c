@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 				setenv("CRONSH_LOGLEVEL", optarg, 1);
 				break;
 			case 'l':
-				setenv("CRONSH_LOGL", optarg, 1);
+				setenv("CRONSH_LOG", optarg, 1);
 				break;
 			case 'f':
 				setenv("CRONSH_FILE", optarg, 1);
@@ -267,7 +267,8 @@ int main(int argc, char **argv) {
 	// finished executing the actual command
 
 
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d, signal: %d", command->status, command->signal);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d", command->status);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "signal: %d", command->signal);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
 
@@ -282,7 +283,7 @@ int main(int argc, char **argv) {
 
 	bufferAppendYAMLList(&outbuffer, 0, "command", command->argv);
 
-	bufferAppendYAML(&outbuffer, 0, "tag", "%s", (command->tag != NULL) ? command->tag : "");
+	bufferAppendYAML(&outbuffer, 0, "tag", "%s", (command->tag != NULL) ? command->tag : "[not given]");
 	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", utcstarttime);
 	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", (unsigned long)(difftimespec(&starttime, &stoptime) * 1000));
 	bufferAppendYAML(&outbuffer, 0, "pid", "%u", command->pid);
@@ -708,8 +709,6 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	
 	command->ppid = config.pid;
 
-	// collapse & separate individual commands
-	// i.e. put \0 between every individual command
 	/*
 		behavior
 
@@ -775,7 +774,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 			options = hashoptions;
 		}
 
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", options == NULL ? "[none]" : options);
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", (options != NULL) ? options : "[not given]");
 	
 		// set the individual options
 		command->options = cronsh_options(config.options, options);
