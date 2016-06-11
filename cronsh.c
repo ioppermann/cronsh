@@ -785,6 +785,9 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 
 		free(hashoptions);
 	}
+	else {
+		command->options = config.options;
+	}
 
 	command->stdinbuffer = stdinbuffer;
 	bufferInit(&command->stdoutbuffer, CRONSH_BUFFER_STEPSIZE);
