@@ -808,7 +808,7 @@ void cronsh_command_free(command_t *command) {
 }
 
 unsigned int cronsh_options(unsigned int inoptions, const char *options) {
-	int negate;
+	int negate, exclusive;
 	unsigned int outoptions = inoptions, toption;
 	char *ref, *string, *token;
 
@@ -853,9 +853,17 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 
 	while((token = strsep(&string, " ")) != NULL) {
 		negate = 0;
-		if(token[0] == '!') {
+		exclusive = 0;
+
+		if(token[0] == '!' || token[0] == '*') {
+			if(token[0] == '!') {
+				negate = 1;
+			}
+			else if(token[0] == '*') {
+				exclusive = 1;
+			}
+
 			token = &token[1];
-			negate = 1;
 		}
 
 		if(strlen(token) == 0) {
@@ -900,6 +908,9 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		
 		if(negate == 1) {
 			outoptions &= ~toption;
+		}
+		else if(exclusive == 1) {
+			outoptions = toption;
 		}
 		else {
 			outoptions |= toption;
