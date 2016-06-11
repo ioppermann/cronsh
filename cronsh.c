@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
 
 	// if we don't have to send anything, we're going into silent mode
 	if(sendif == 0) {
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "we should not send anything");
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "we shall not send anything");
 		command->options |= CRONSH_OPTION_SILENT;
 	}
 
