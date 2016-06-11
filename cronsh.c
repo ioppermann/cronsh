@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
 #include <time.h>
 #include <errno.h>
 
@@ -71,7 +72,7 @@ typedef struct {
 
 typedef struct {
 	unsigned int options;
-	char **argv;
+	char *argv[4];
 	
 	char *tag;
 
@@ -391,7 +392,7 @@ int main(int argc, char **argv) {
 
 	bufferFree(&outbuffer);
 
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "done\n");
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "done");
 
 	return 0;
 }
@@ -696,9 +697,6 @@ void cronsh_init(void) {
 }
 
 command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
-	int nargs, len, i, j, inquotes, inoptions;
-	char last, current;
-	char *tcommand;
 	command_t *command;
 	
 	command = (command_t *)calloc(1, sizeof(command_t));
@@ -712,218 +710,78 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 
 	// collapse & separate individual commands
 	// i.e. put \0 between every individual command
-/*
-	behaviour
-	:quotes: = " '
-	:slash: = \
-	:space: = \t \r \n 0x20
-	:any: = everything else
-	:null: = \0
+	/*
+		behavior
 
-	:slash: is for escaping
-	specials chars: :quotes: :slash: :space: :any:
-	rules:
-	   !inquotes
-	     :slash::quotes: -> :quotes: and no inquotes-toggle
-	     :slash::slash: -> :slash:
-	     :slash::space: -> :space: and no separation
-	     :slash::any: -> :slash::any:
-	     :slash::null: -> :slash::null:
-	     :space:+ -> :space:
-	     :any: -> :any:
-	   inquotes
-	     :slash::quotes: -> :quotes: and no inquote-toggle
-	     :slash::slash: -> :slash:
-	     :slash::space: -> :slash::space:
-	     :slash::any: -> :slash::any:
-	     :slash::null: -> :slash::null:
-	     :space: -> :space:
-	     :any: -> :any:
+		look for '#' and split the command there.
+		if '#' is escaped with '\', don't split there.
 
-	cases:
-	  "hello world" -> arg[0] = hello world
-	  \"hello world" -> arg[0] = "hello | arg[1] = world -> error: mis-matching quotes
-	  "hello world\" -> arg[0] = hello world" -> error: mis-matching quotes
-	  "hello world\\" -> arg[0] = hello world\
-	  "hello wo\rld" -> arg[0] = hello wo\rld
-	  "hello\ world" -> arg[0] = hello\ world
-	  hello wo\rld -> arg[0] = hello | arg[1] = wo\rld
-	  hello\ world -> arg[0] = hello world
-*/
+		-> command, hash-options
 
-	len = strlen(rawcommand);
-	tcommand = (char *)calloc(len + 1, sizeof(char));
-	if(tcommand == NULL) {
-		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "Not enough memory for temporary command!");
-		
-		free(command);
+		execute command with /bin/sh -c 'command'
+		parse hash-options
+	*/
 
-		return NULL;
-	}
+	char *tcommand = strdup(rawcommand);
 
-	nargs = 0;
-	last = '\0';
-	inquotes = 0;
-	j = 0;
+	command->argv[0] = "/bin/sh";
+	command->argv[1] = "-c";
+	command->argv[2] = NULL;
+	command->argv[3] = NULL;
+
+	char *hashoptions = NULL;
+
+	int len = strlen(tcommand);
+	int i = 0;
 	for(i = 0; i < len; i++) {
-		if(rawcommand[i] == '\0') {
+		if(tcommand[i] == '\\') {
+			i++;
+			continue;
+		}
+
+		if(tcommand[i] == '#') {
+			hashoptions = strdup(&tcommand[i]);
+			tcommand[i] = '\0';
 			break;
 		}
-
-		current = rawcommand[i];
-
-		// normalizing chars
-
-		// :space: is separator of commands, ignored if in :quotes:
-
-		// treat \t, \n, and \r the same as :space:
-		if(current == '\t' || current == '\n' || current == '\r') {
-			current = ' ';
-		}
-
-		// treat " and ' as :quotes:
-		if(current == '"' || current == '\'') {
-			current = '"';
-		}
-
-		if(inquotes == 0) {
-			if(last == '\\') {
-				if(current == '"' || current == '\\' || current == ' ') {
-					current = '\0';
-				}
-				else {
-					tcommand[j++] = last;
-				}
-			}
-			else {
-				if(current == '\\') {
-					last = current;
-					continue;
-				}
-
-				if(current == '"') {
-					cronsh_log(CRONSH_LOGLEVEL_DEBUG, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
-					inquotes = 1;
-					continue;
-				}
-
-				if(current == ' ') {
-					if(last == ' ') {
-						continue;
-					}
-
-					last = current;
-					tcommand[j++] = '\0';
-					nargs++;
-
-					continue;
-				}
-			}
-		}
-		else {
-			if(last == '\\') {
-				if(current == '"' || current == '\\') {
-					current = '\0';
-				}
-				else {
-					tcommand[j++] = last;
-				}
-			}
-			else {
-				if(current == '\\') {
-					last = current;
-					continue;
-				}
-
-				if(current == '"') {
-					cronsh_log(CRONSH_LOGLEVEL_DEBUG, "inquotes: %d, last: %c, current: %c", inquotes, last, current);
-					inquotes = 0;
-					continue;
-				}
-			}
-		}
-
-		// copy the current char
-		tcommand[j++] = rawcommand[i];
-
-		last = current;
 	}
 
-	nargs++;
-	tcommand[j] = '\0';
+	command->argv[2] = strdup(tcommand);
 
-	if(inquotes == 1) {
-		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "mis-matching quotes!");
-
-		free(tcommand);
-		free(command);
-
-		return NULL;
-	}
-
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "nargs: %d", nargs);
-
-	// trimming & split to args
-
-	command->argv = (char **)calloc(nargs + 1, sizeof(char *));
-	if(command->argv == NULL) {
-		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "Not enough memory for arguments!");
-
-		free(tcommand);
-		free(command);
-
-		return NULL;
-	}
-
-	nargs = 0;
-	last = '\0';
-
-	for(i = 0; i < len; i++) {
-		if(last == '\0' && tcommand[i] != '\0') {
-			command->argv[nargs++] = strdup(&tcommand[i]);
-		}
-
-		last = tcommand[i];
-	}
-
-	command->argv[nargs] = NULL;
+	free(tcommand);
 
 	for(i = 0; command->argv[i] != NULL; i++) {
 		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "argv[%d]: %s", i, command->argv[i]);
 	}
-	
-	
-	// concat the options
 
-	memset(tcommand, 0, len);
-	
-	inoptions = 0;
-	for(i = 0; command->argv[i] != NULL; i++) {
-		if(inoptions == 0) {
-			if(command->argv[i][0] != '#') {
-				continue;
+	if(hashoptions != NULL) {
+		char *options = NULL;
+
+		if(hashoptions[0] == '#') {
+			char *tag = &hashoptions[1];
+
+			len = strlen(hashoptions);
+			for(i = 0; i < len; i++) {
+				if(isspace(hashoptions[i])) {
+					hashoptions[i] = '\0';
+					options = &hashoptions[i + 1];
+					break;
+				}
 			}
 
-			if(strlen(command->argv[i]) > 1) {
-				command->tag = strdup(&command->argv[i][1]);
-			}
-
-			command->argv[i] = NULL;
-			inoptions = 1;
-
-			continue;
+			command->tag = strdup(tag);
 		}
-		
-		strncat(tcommand, command->argv[i], strlen(command->argv[i]));
-		strncat(tcommand, " ", 1);
+		else {
+			options = hashoptions;
+		}
+
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", options == NULL ? "[none]" : options);
+	
+		// set the individual options
+		command->options = cronsh_options(config.options, options);
+
+		free(hashoptions);
 	}
-	
-	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", tcommand);
-	
-	// set the individual options
-	command->options = cronsh_options(config.options, tcommand);
-	
-	free(tcommand);
 
 	command->stdinbuffer = stdinbuffer;
 	bufferInit(&command->stdoutbuffer, CRONSH_BUFFER_STEPSIZE);
@@ -940,12 +798,11 @@ void cronsh_command_free(command_t *command) {
 	bufferFree(&command->stdoutbuffer);
 	bufferFree(&command->stderrbuffer);
 
-	int i = 0;
-	for(i = 0; command->argv[i] != NULL; i++) {
-		free(command->argv[i]);
+	if(command->argv[2] != NULL) {
+		free(command->argv[2]);
 	}
 
-	free(command->argv);
+	free(command);
 	
 	return;
 }
@@ -993,9 +850,6 @@ unsigned int cronsh_options(unsigned int inoptions, const char *options) {
 		sendif-stderr-any, !sendif-stderr-any
 		sendif-any, !sendif-any
 	*/
-
-	// idea for alternative syntax:
-	// capture: stdout, stderr; send to: file, pipe; status: any; signal: any; stdout: none; stderr: 
 
 	while((token = strsep(&string, " ")) != NULL) {
 		negate = 0;
