@@ -287,7 +287,7 @@ int main(int argc, char **argv) {
 
 	bufferAppendYAMLList(&outbuffer, 0, "command", CRONSH_YAML_STRING, command->argv);
 
-	bufferAppendYAML(&outbuffer, 0, "tag", "%s", CRONSH_YAML_STRING, (command->tag != NULL) ? command->tag : "[not given]");
+	bufferAppendYAML(&outbuffer, 0, "tag", "%s", CRONSH_YAML_STRING, (command->tag != NULL) ? command->tag : "");
 	bufferAppendYAML(&outbuffer, 0, "starttime", "%ld", CRONSH_YAML_NUMBER, utcstarttime);
 	bufferAppendYAML(&outbuffer, 0, "runtime", "%ld", CRONSH_YAML_NUMBER, (unsigned long)(difftimespec(&starttime, &stoptime) * 1000));
 	bufferAppendYAML(&outbuffer, 0, "pid", "%u", CRONSH_YAML_NUMBER, command->pid);
@@ -418,6 +418,11 @@ int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 	}
 
 	cronsh_command_spawn(command);
+
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d", command->status);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "signal: %d", command->signal);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
 	
 	cronsh_command_free(command);
 	
@@ -667,7 +672,7 @@ void cronsh_init(void) {
 		strncpy(config.thishostname, env, sizeof(config.thishostname));
 	}
 	else if(gethostname(config.thishostname, sizeof(config.thishostname)) != 0) {
-		strncpy(config.thishostname, "[unknown]", sizeof(config.thishostname));
+		strncpy(config.thishostname, "unknown", sizeof(config.thishostname));
 	}
 
 	config.thishostname[sizeof(config.thishostname) - 1] = '\0';
@@ -687,7 +692,7 @@ void cronsh_init(void) {
 			strncpy(config.thisuser, env, sizeof(config.thisuser));
 		}
 		else {
-			strncpy(config.thisuser, "[unknown]", sizeof(config.thisuser));
+			strncpy(config.thisuser, "unknown", sizeof(config.thisuser));
 		}
 	}
 
@@ -702,9 +707,13 @@ void cronsh_init(void) {
 }
 
 command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
-	command_t *command;
+	if(rawcommand == NULL) {
+		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "No command given.");
+
+		return NULL;
+	}
 	
-	command = (command_t *)calloc(1, sizeof(command_t));
+	command_t *command = (command_t *)calloc(1, sizeof(command_t));
 	if(command == NULL) {
 		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "Not enough memory for command structure!");
 
@@ -725,7 +734,14 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 		parse hash-options
 	*/
 
-	char *tcommand = strdup(rawcommand);
+	int len = strlen(rawcommand);
+
+	char *tcommand = (char *)calloc(len + 1, sizeof(char));
+	if(tcommand == NULL) {
+		cronsh_log(CRONSH_LOGLEVEL_CRITICAL, "Not enough memory for temporary command string!");
+
+		return NULL;
+	}
 
 	command->argv[0] = "/bin/sh";
 	command->argv[1] = "-c";
@@ -734,27 +750,22 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 
 	char *hashoptions = NULL;
 
-	int len = strlen(tcommand);
-	int i = 0;
+	int i = 0, j = 0;
 	for(i = 0; i < len; i++) {
-		if(tcommand[i] == '\\') {
+		if(rawcommand[i] == '\\' && rawcommand[i + 1] == '#') {
 			i++;
+
+			tcommand[j++] = '#';
+
 			continue;
 		}
-
-		if(tcommand[i] == '#') {
-			hashoptions = strdup(&tcommand[i]);
-			tcommand[i] = '\0';
-			break;
+		else if(rawcommand[i] == '#') {
+			if(hashoptions == NULL) {
+				hashoptions = &tcommand[j];
+			}
 		}
-	}
 
-	command->argv[2] = strdup(tcommand);
-
-	free(tcommand);
-
-	for(i = 0; command->argv[i] != NULL; i++) {
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "argv[%d]: %s", i, command->argv[i]);
+		tcommand[j++] = rawcommand[i];
 	}
 
 	if(hashoptions != NULL) {
@@ -772,21 +783,31 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 				}
 			}
 
-			command->tag = strdup(tag);
+			if(strlen(tag) != 0) {
+				command->tag = strdup(tag);
+			}
 		}
 		else {
 			options = hashoptions;
 		}
 
-		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", (options != NULL) ? options : "[not given]");
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "options: %s", (options != NULL) ? options : "");
 	
 		// set the individual options
 		command->options = cronsh_options(config.options, options);
 
-		free(hashoptions);
+		hashoptions[0] = '\0';
 	}
 	else {
 		command->options = config.options;
+	}
+
+	command->argv[2] = strdup(tcommand);
+
+	free(tcommand);
+
+	for(i = 0; command->argv[i] != NULL; i++) {
+		cronsh_log(CRONSH_LOGLEVEL_DEBUG, "argv[%d]: %s", i, command->argv[i]);
 	}
 
 	command->stdinbuffer = stdinbuffer;
@@ -1295,13 +1316,14 @@ int bufferAppendYAML(buffer_t *dst, unsigned int level, const char *key, const c
 
 					len = 0;
 					p = t + 1;
-	                        }
-	                        else if(iscntrl(*t)) {
-	                        	rv += bufferAppendBytes(dst, p, len - 1);
-	                        	rv += bufferAppendString(dst, "\\x%x", *t);
-	                        	len = 0;
+				}
+				else if(iscntrl(*t)) {
+					rv += bufferAppendBytes(dst, p, len - 1);
+					rv += bufferAppendString(dst, "\\x%x", *t);
+
+					len = 0;
 					p = t + 1;
-	                        }
+				}
 
 				t++;
 			}
