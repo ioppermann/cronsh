@@ -727,11 +727,13 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 
 		look for '#' and split the command there.
 		if '#' is escaped with '\', don't split there.
+		unescape escaped '#'.
 
 		-> command, hash-options
 
-		execute command with /bin/sh -c 'command'
-		parse hash-options
+		strip trailing spaces from the command.
+		execute command with /bin/sh -c 'command'.
+		parse hash-options.
 	*/
 
 	int len = strlen(rawcommand);
@@ -800,6 +802,15 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 	}
 	else {
 		command->options = config.options;
+	}
+
+	len = strlen(tcommand);
+	for(i = (len - 1); i > 0; i--) {
+		if(!isspace(tcommand[i])) {
+			break;
+		}
+
+		tcommand[i] = '\0';
 	}
 
 	command->argv[2] = strdup(tcommand);
