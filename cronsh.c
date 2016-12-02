@@ -34,6 +34,8 @@
 #define CRONSH_YAML_NUMBER		1
 #define CRONSH_YAML_STRING		2
 
+#define CRONSH_SHELL_DEFAULT		"/bin/sh"
+
 #define CRONSH_OPTION_NONE			0
 #define CRONSH_OPTION_SILENT			(1 <<  0)
 // capture options
@@ -94,6 +96,8 @@ typedef struct {
 } command_t;
 
 typedef struct {
+	char *shell;
+
 	int loglevel;
 	char *log;
 	FILE *logfp;
@@ -140,6 +144,7 @@ int bufferAppendYAMLList(buffer_t *dst, unsigned int level, const char *key, int
 
 
 // http://stackoverflow.com/a/9781275, not very accurate because it's not monotic
+/*
 #ifdef __MACH__
 #include <sys/time.h>
 #define CLOCK_MONOTONIC 0
@@ -153,6 +158,7 @@ int clock_gettime(int clk_id, struct timespec* t) {
     return 0;
 }
 #endif
+*/
 
 float difftimespec(struct timespec *start, struct timespec *stop) {
 	struct timespec t;
@@ -180,10 +186,13 @@ int main(int argc, char **argv) {
 
 	opterr = 0;
 
-	while((c = getopt(argc, argv, ":c: :V: :l: :f: :p: :o: :H: h")) != -1) {
+	while((c = getopt(argc, argv, ":c: :s: :V: :l: :f: :p: :o: :H: h")) != -1) {
 		switch(c) {
 			case 'c':
 				rawcommand = optarg;
+				break;
+			case 's':
+				setenv("CRONSH_SHELL", optarg, 1);
 				break;
 			case 'V':
 				setenv("CRONSH_LOGLEVEL", optarg, 1);
@@ -634,6 +643,19 @@ void cronsh_init(void) {
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "init start");
 
 
+	/* SHELL */
+
+	env = getenv("CRONSH_SHELL");
+	if(env != NULL) {
+		config.shell = strdup(env);
+	}
+	else {
+		config.shell = CRONSH_SHELL_DEFAULT;
+	}
+
+	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "SHELL: %s", config.shell);
+
+
 	/* FILE */
 
 	env = getenv("CRONSH_FILE");
@@ -745,7 +767,7 @@ command_t *cronsh_command_init(const char *rawcommand, buffer_t *stdinbuffer) {
 		return NULL;
 	}
 
-	command->argv[0] = "/bin/sh";
+	command->argv[0] = config.shell;
 	command->argv[1] = "-c";
 	command->argv[2] = NULL;
 	command->argv[3] = NULL;
@@ -1052,6 +1074,9 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t-V verbosity\n");
 	fprintf(stderr, "\t    Sets the environment variable CRONSH_LOGLEVEL.\n");
 	fprintf(stderr, "\n");
+	fprintf(stderr, "\t-s shell\n");
+	fprintf(stderr, "\t    Sets the environment variable CRONSH_SHELL.\n");
+	fprintf(stderr, "\n");
 	fprintf(stderr, "\t-l file\n");
 	fprintf(stderr, "\t    Sets the environment variable CRONSH_LOG.\n");
 	fprintf(stderr, "\n");
@@ -1077,6 +1102,9 @@ void cronsh_help(void) {
 	fprintf(stderr, "\t         notice    - less verbose logging, includes critical.\n");
 	fprintf(stderr, "\t         critical  - only logs events that prevent the proper execution of cronsh.\n");
 	fprintf(stderr, "\n");
+	fprintf(stderr, "\tCRONSH_SHELL\n");
+	fprintf(stderr, "\t    Path to a shell to used for executing the command. The default is " CRONSH_SHELL_DEFAULT "\n");
+	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_LOG\n");
 	fprintf(stderr, "\t    Path to the file where to write log messages to.\n");
 	fprintf(stderr, "\n");
@@ -1088,7 +1116,7 @@ void cronsh_help(void) {
 	fprintf(stderr, "\n");
 	fprintf(stderr, "\tCRONSH_OPTIONS\n");
 	fprintf(stderr, "\t    Set the different options to define the default behaviour of cronsh. The order of the\n");
-	fprintf(stderr, "\t    options crucial. Valid options are:\n");
+	fprintf(stderr, "\t    options is crucial. Valid options are:\n");
 	fprintf(stderr, "\t         silent              - nothing will be send neither to cron, file, nor pipe.\n");
 	fprintf(stderr, "\t         crondefault         - mimic the default cron behaviour, i.e. send the YAML to cron only if there's output.\n");
 	fprintf(stderr, "\t         capture-stdout      - capture stdout.\n");
