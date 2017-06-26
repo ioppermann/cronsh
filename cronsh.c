@@ -410,14 +410,14 @@ int cronsh_pipe(const char *rawpipecommand, buffer_t *buffer) {
 
 	cronsh_command_spawn(command);
 
+	rv = command->status;
+
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "status: %d", command->status);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "signal: %d", command->signal);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stdout: (%d) %s", command->stdoutbuffer.used, command->stdoutbuffer.data);
 	cronsh_log(CRONSH_LOGLEVEL_DEBUG, "stderr: (%d) %s", command->stderrbuffer.used, command->stderrbuffer.data);
-	
+
 	cronsh_command_free(command);
-	
-	rv = command->status;
 
 	return rv;
 }
